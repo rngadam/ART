@@ -1,0 +1,104 @@
+﻿To build this robot toy car, you will need:
+
+Components:
+
+-an RC car (67RMB, http://item.taobao.com/item.htm?id=7905841099)
+-an additional battery, to the one that comes with the RC car, rechargeable Ni-Cd 400mAh/6V battery pack 
+-an Arduino (any should do, we use the Dueminalove)
+-a pile of cables with pins
+-one or more ranging sensor of some kind (infrared such as Sharp IR or Ultrasonic such as the Parallax Ping)
+-a small breadboard
+-an IC with at least 4 transistors (such as the ULN2803APG) or 4 NPN transistors 
+-two AA battery (to test the RF transmitter)
+-possibly a small servo-motor  to rotate ranging sensor
+
+Tools:
+-a USB cable (standard USB transfer cable)
+-a PC (Mac, Linux or Windows)
+-Arduino software
+-a Dremel or its Chinese copy equivalent
+-a wire stripper
+-some tape
+-a marker (Sharpie permanent marker)
+-a ruler
+-a set of precision screwdrivers
+-some electric tape (or alternatively,   little name stickers...)
+-four plastic bags for the screws you'll remove
+-a soldering iron 
+-a ballpen
+-a camera for posterity!
+
+Steps:
+
+Charge your batteries 
+* move to the next few steps that don't require battery while you wait (4 hours charge time)
+
+Remove the plastic cover from the top of the car
+* Turn over and start unscrewing starting with the back of the car
+* Note that you may have to unscrew at an angle to get the screws furthest back out
+* Keep the screws securely in a bag, organized by step
+* 4 on the main plate, 2 in front, two for the lights
+* Get the antenna from the cover (don't pull out too quickly - watch out for those thin wires connecting to the light)
+* Put the cover on the side
+* Remove the hot glue by melting it with soldering iron and a pair of tweezers 
+* Remove the useless soudbox plastic box on top of the servo (3 screws)
+* Screw the lights upside-down on the servo plastic box now available holes
+* Tape the electric wires to the plastic frame
+
+Test your car with the provided RF remote to verify that it does indeed still work
+
+Take apart the remote
+* twist the round plastic piece securing the antenna
+* remove screws to open the case (6 screws)
+* remove the screws holding down the board
+* take care to mark which wire goes to source and ground (+ wire with the marker)
+* unscrew the antenna
+
+Create a new wood plate by tracing the various components and holes (don't forget the hole for the antenna)
+* Dimension: 15cm wide by 25cm long (size of wood board is chosen to fit the board within the wheels)
+* Use the right angle ruler: create an angle, measure desired width and height, trace box with marker
+
+Remove the plastic plate on which the plastic cover was screwed
+* Remove the four screws and then squeeze the hinges on the front of the plate to remove
+
+Do the layout
+* Figure out where to put the holes by overlaying the plastic plate on the board 
+* To locate holes, remove the ballpoint from the pen body  
+* Take all the electric components and place them on the new plate until satisfied with the layout
+* Trace screwholes and the outline of parts for electronics
+* Don't forget to leave a larger hole on the front of the plastic plate and to the left for the antenna to come out!
+
+Cut the wood plate with the dremel
+* Cut rectangle
+* Break off rectangle
+* Sand edges of rectangle
+* Drill holes into the wood plate with the dremel
+* Verify alignment with plastic plate
+* Test alignment with antenna
+
+Assemble mechanical parts
+* Put back the plastic plate on the car
+* Tie-wrap the wood plate to the plastic plate
+* Tie-wrap the components to the wood board
+
+Assemble electronics
+* Connect wires to/from the various components (except the battery)
+
+Place the sensor(s)
+* Make sure the sensors are physically very well aligned
+
+Write basic Arduino program
+* Start Arduino IDE
+* Write basic Arduino program
+* Connect to USB
+* Upload
+
+Test your robot
+* transmitter light comes on 
+* sensor obstacle detection works
+* Test that motor control works
+* Turn on the car, manually trigger the sensor
+* Put it on the ground and let it fly! (don't forget to get it on video!)
+
+Other
+* Use version control (github.com or code.google.com) to keep source and documentation
