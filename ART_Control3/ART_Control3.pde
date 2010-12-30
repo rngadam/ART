@@ -36,8 +36,8 @@ const int SENSOR_LOOKING_FORWARD_READING_INDEX = SENSOR_LOOKING_FORWARD_ANGLE/SE
 /*
 Robot related information
 */
-const int MINIMUM_DISTANCE = 50;
-
+const int SAFE_DISTANCE = 50;
+const int CRITICAL_DISTANCE = 20;
 enum states {
   SWEEPING = 'S',
   GO = 'G',
@@ -205,7 +205,12 @@ void start_sweep() {
 
 boolean potential_collision() {
   read_sensor(SENSOR_LOOKING_FORWARD_ANGLE);
-  return sensor_distance_readings_cm[SENSOR_LOOKING_FORWARD_READING_INDEX] <= MINIMUM_DISTANCE;
+  return sensor_distance_readings_cm[SENSOR_LOOKING_FORWARD_READING_INDEX] <= SAFE_DISTANCE;
+}
+
+boolean imminent_collision() {
+  read_sensor(SENSOR_LOOKING_FORWARD_ANGLE);
+  return sensor_distance_readings_cm[SENSOR_LOOKING_FORWARD_READING_INDEX] <= CRITICAL_DISTANCE;
 }
 
 int find_best_direction_degrees() {
@@ -277,11 +282,12 @@ void loop(){
     current_state = SWEEPING;
     break;
   case TURN:
-    if(potential_collision()) {
+    if(imminent_collision()) {
       full_stop();
     }
     if(handle_turn()) {
-      // we've turned! try to move forward now
+      // we've turned! reset and try to move forward now
+      full_stop();
       current_state = GO;
     }
     break;
