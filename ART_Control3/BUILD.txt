@@ -2,47 +2,50 @@
 
 Components:
 
--an RC car (67RMB, http://item.taobao.com/item.htm?id=7905841099)
--an additional battery (to the one that comes with the RC car) rechargeable Ni-Cd 400mAh/6V battery pack 
--an Arduino (any should do, we use the Dueminalove)
--a pile of cables with pins
--one or more ranging sensor of some kind (infrared such as Sharp IR or Ultrasonic such as the Parallax Ping or both)
--a small breadboard-sized breadboard
--an IC with at least 4 transistors (such as the ULN2803APG) or 4 NPN transistors 
--two AA battery (to test the RF transmitter)
--possibly a small servo-motor to rotate ranging sensor
+* an RC car (67RMB, http://item.taobao.com/item.htm?id=7905841099)
+* an additional battery (to the one that comes with the RC car) rechargeable Ni-Cd 400mAh/6V battery pack 
+* an Arduino (any should do, we use the Dueminalove)
+* a pile of cables with pins
+* one or more ranging sensor of some kind (infrared such as Sharp IR or Ultrasonic such as the Parallax Ping or both)
+* a small breadboard
+* an IC with at least 4 transistors (such as the ULN2803APG) or 4 separate NPN transistors 
+* two AA battery (to test the RF transmitter)
 
 Tools:
--a USB cable (standard USB transfer cable)
--a PC (Mac, Linux or Windows)
--Arduino software
--a Dremel (or its Chinese copy equivalent...)
--a wire stripper
--a marker (Sharpie permanent marker)
--a right angle ruler
--a set of precision screwdrivers
--some electric tape (or alternatively,   little name stickers...)
--four plastic bags for the screws you'll remove
--a soldering iron 
--a ballpen
--a camera for posterity!
+* a USB cable (standard USB transfer cable)
+* a PC (Mac, Linux or Windows)
+* Arduino software
+* a Dremel (or its Chinese copy equivalent...)
+* a wire stripper
+* a marker (Sharpie fine point permanent marker)
+* a right angle ruler
+* a set of precision screwdrivers
+* some electric tape (or alternatively, little name stickers...)
+* four plastic bags for the screws you'll remove
+* a soldering iron 
+* a ballpen
+* cardboard box at least 15cm X 25cm (surface to put the woodboard on top to drill holes)
+* a camera for posterity!
+
+Optional
+* possibly a small servo-motor to rotate ranging sensor
 
 Steps:
 
 Charge your batteries 
 * move to the next few steps that don't require battery while you wait (4 hours charge time)
 
-Remove the plastic cover from the top of the car
+Remove the plastic shell from the top of the car
 * Turn over and start unscrewing starting with the back of the car
 * Note that you may have to unscrew at an angle to get the screws furthest back out
-* Keep the screws securely in a bag, organized by step (write down where they came from with the market)
-* You will find 4 screws on the main plate, 2 in front, two for the lights
-* Get the antenna from the cover (don't pull out too quickly - watch out for those thin wires connecting to the light)
-* Put the cover on the side
+* Keep the screws securely in a bag, organized by step (write down where they came from with the marker)
+* You will find 4 screws on the main plate, 2 in front, 2 for the lights
+* Get the antenna out of the shell (don't pull out too quickly - watch out for those thin wires connecting to the light)
+* Put the shell on the side
 * Remove the hot glue by melting it with soldering iron and a pair of tweezers 
 * Remove the useless soundbox plastic cover box on top of the servo (3 screws)
 * Screw the lights upside-down on the servo plastic box now available holes
-* Tape the electric wires from the light to the plastic frame
+* Tape the electric wires from the light to the plastic chassis
 
 Test your car with the provided RF remote to verify that it does indeed still work
 
@@ -50,14 +53,14 @@ Take apart the remote
 * twist the round plastic piece securing the antenna
 * remove screws to open the case (6 screws)
 * remove the screws holding down the board
-* take care to mark which wire goes to source and ground (ex: the wire to positive with the marker)
+* take care to mark which wire goes to source and ground (ex: the wire to positive marked the marker)
 * unscrew the antenna
 
 Create a new wood plate by tracing the various components and holes (don't forget the hole for the antenna)
 * Dimension: 15cm wide by 25cm long (size of wood board is chosen to fit the board within the wheels)
 * Use the right angle ruler: create an angle, measure desired width and height, trace box with marker
 
-Remove the plastic plate on which the plastic cover was screwed
+Remove the plastic plate on which the plastic shell was screwed
 * Remove the four screws and then squeeze the hinges on the front of the plate to remove
 
 Do the layout
@@ -66,22 +69,22 @@ Do the layout
 * Take all the electric components and place them on the new plate until satisfied with the layout
 * Trace screwholes and the outline of parts for electronics
 * Don't forget to leave a larger hole on the front of the plastic plate and to the left for the antenna to come out!
-* Create a grid of holes in front and in the back of the board to give you flexiblity in placing the sensors
+* Create a grid of holes in front and in the back of the board to give you flexibility in placing the sensors
 
 Cut the wood plate with the dremel
-* Cut rectangle with Dremel and than break if off)
+* Cut rectangle with the Dremel and than break if off
 * Sand edges of rectangle
 
 Drill holes into the wood plate with the dremel 
 * use a spare piece of wood or cardboard box upside-down
 * put the wood board on the cardboard box
 * drill holes!
-* Verify alignment with plastic plate
+* Verify alignment with plastic plate of chassis
 * Test alignment with antenna
 
 Assemble mechanical parts
 * Put back the plastic plate on the car
-* Tie-wrap the wood plate to the plastic plate
+* Tie-wrap the wood board to the plastic plate
 * Tie-wrap the components to the wood board
 
 Assemble electronics
