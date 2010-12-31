@@ -2,6 +2,14 @@
 #include <Servo.h> 
 #include <limits.h>
 
+enum LOG_LEVELS {
+   TRACE,
+   DEBUG,
+   INFO,
+   ERROR
+};
+int LOG_LEVEL = INFO;
+
 // various directions we can go to
 const int FORWARD =  2;      // the number of the LED pin
 const int REVERSE =  3;  
@@ -24,7 +32,7 @@ Temperature:0-60 Celcius degree
 Size：40.2 x 20.2 x 43.2mm
 Weight：48g
 */
-const int SERVO_TURN_RATE_PER_SECOND = 300; // 60/(0.2*3) where 3 is caused by load?
+const int SERVO_TURN_RATE_PER_SECOND = 100; // 100 = 60/(0.2*3) where 3 is caused by load?
 
 /* 
 HC-SR04 Ultrasonic sensor
@@ -145,12 +153,12 @@ record current time to compare to
 void start_timed_operation(int index, int duration) {
   timed_operation_initiated_millis[index] = millis();
   timed_operation_desired_wait_millis[index] = duration;
-  /*
-  Serial.print("Timer added type ");
-  Serial.print(index);
-  Serial.print(" wait in millis:");
-  Serial.println(duration);
-  */
+  if(LOG_LEVEL >= TRACE) {
+    Serial.print("Timer added type ");
+    Serial.print(index);
+    Serial.print(" wait in millis:");
+    Serial.println(duration);
+  }
 }
 
 /*
@@ -200,6 +208,8 @@ int read_sensor() {
   // only update if the value is different beyond precision of sensor
   if(abs(measured_value - sensor_distance_readings_cm[index]) > SENSOR_PRECISION_CM) {
     sensor_distance_readings_cm[index] = measured_value;
+  }
+  if(LOG_LEVEL >= INFO) {
     Serial.print("Sensor reading:");
     Serial.print(current_sensor_servo_angle);
     Serial.print(":");
@@ -237,7 +247,7 @@ boolean sensor_sweep() {
   int desired_sensor_servo_angle = current_sensor_servo_angle + SENSOR_ARC_DEGREES;
   
   // we've completed from MINIMUM_SENSOR_SERVO_ANGLE to MAXIMUM_SENSOR_SERVO_ANGLE
-  if(desired_sensor_servo_angle >= MAXIMUM_SENSOR_SERVO_ANGLE) {
+  if(desired_sensor_servo_angle > MAXIMUM_SENSOR_SERVO_ANGLE) {
     return true;
   } 
   
@@ -254,9 +264,10 @@ void update_servo_position(int desired_sensor_servo_angle) {
     start_timed_operation(WAIT_FOR_SERVO_TO_TURN, wait_millis);
 
     current_sensor_servo_angle = desired_sensor_servo_angle;
-
-    Serial.print("SERVO:");
-    Serial.println(desired_sensor_servo_angle);
+    if(LOG_LEVEL >= DEBUG) {
+      Serial.print("SERVO:");
+      Serial.println(desired_sensor_servo_angle);
+    }
   }
 }
 
@@ -295,8 +306,10 @@ void init_turn() {
   go(FORWARD);
   int expected_wait = expected_wait_millis(ROBOT_TURN_RATE_PER_SECOND, SENSOR_LOOKING_FORWARD_ANGLE, turn_towards);
   start_timed_operation(WAIT_FOR_ROBOT_TO_TURN, expected_wait);
-  Serial.print("Waiting for robot to turn millis: ");
-  Serial.println(expected_wait);
+  if(LOG_LEVEL >= DEBUG) {
+    Serial.print("Waiting for robot to turn millis: ");
+    Serial.println(expected_wait);
+  }
 }
 
 void init_go() {
@@ -406,15 +419,19 @@ void loop(){
     }
     break;
   default:
-    Serial.println("BAD STATE!");
+    if(LOG_LEVEL >= ERROR) { 
+      Serial.println("BAD STATE!");
+    }
     break;
   }
 
   if(initial_state != current_state) {
-    Serial.print("INITIAL STATE:");
-    Serial.print((char)initial_state);
-    Serial.print(" FINAL STATE:");
-    Serial.println((char)current_state);
+    if(LOG_LEVEL >= INFO) {
+      Serial.print("INITIAL STATE:");
+      Serial.print((char)initial_state);
+      Serial.print(" FINAL STATE:");
+      Serial.println((char)current_state);
+    }
   }
 }
 
