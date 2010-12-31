@@ -20,11 +20,11 @@ Voltage: +4.8-7.2V
 Current: 180mA(4.8V)；220mA（6V）
 Speed(no load)：0.17 s/60 degree (4.8V);0.25 s/60 degree (6.0V)
 Torque：10Kg·cm(4.8V) 12KG·cm(6V) 15KG·cm(7.2V)
-Temperature:0-60 Celius degree
+Temperature:0-60 Celcius degree
 Size：40.2 x 20.2 x 43.2mm
 Weight：48g
 */
-const int SERVO_TURN_RATE_PER_SECOND = 100; // 60/(0.2*3) where 3 is caused by load?
+const int SERVO_TURN_RATE_PER_SECOND = 300; // 60/(0.2*3) where 3 is caused by load?
 
 /* 
 HC-SR04 Ultrasonic sensor
@@ -62,8 +62,6 @@ enum states {
   TURN = 'T',
 };
 
-
-
 // Global variable
 // this contains readings from a sweep
 int sensor_distance_readings_cm[NUMBER_READINGS];
@@ -84,7 +82,6 @@ int timed_operation_initiated_millis[WAIT_ARRAY_SIZE];
 int timed_operation_desired_wait_millis[WAIT_ARRAY_SIZE];
 
 // variables to store the servo current and desired angle 
-int desired_sensor_servo_angle = SENSOR_LOOKING_FORWARD_ANGLE;   
 int current_sensor_servo_angle = 0;
 
 // Two useful objects...
@@ -103,6 +100,7 @@ void setup() {
     timed_operation_initiated_millis[i] = 0;  
     timed_operation_desired_wait_millis[i] = 0;
   }
+  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);   
   Serial.begin(9600);
 }
 
@@ -141,7 +139,6 @@ void full_stop() {
   digitalWrite(RIGHT, LOW);
 }
 
-
 /*
 record current time to compare to
 */
@@ -158,8 +155,7 @@ void start_timed_operation(int index, int duration) {
 
 /*
 Check whether the timer has expired
-if expired, returns true
-if not expired, returns false
+if expired, returns true else returns false
 */
 boolean timed_operation_expired(int index) {
   int current_time = millis();
@@ -188,7 +184,6 @@ int convert_reading_index(int angle) {
 }
 
 int read_sensor() {
-  int index = convert_reading_index(current_sensor_servo_angle);
   if(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
     return NO_READING;
   }
@@ -201,6 +196,8 @@ int read_sensor() {
   
   start_timed_operation(WAIT_FOR_ECHO, SENSOR_MINIMAL_WAIT_ECHO_MILLIS);
   
+  int index = convert_reading_index(current_sensor_servo_angle);
+  // only update if the value is different beyond precision of sensor
   if(abs(measured_value - sensor_distance_readings_cm[index]) > SENSOR_PRECISION_CM) {
     sensor_distance_readings_cm[index] = measured_value;
     Serial.print("Sensor reading:");
@@ -214,40 +211,42 @@ int read_sensor() {
 int get_last_reading_for_angle(int angle) {
   return sensor_distance_readings_cm[convert_reading_index(angle)];
 }
+
+/*
+Initialize sweep (setting state and position sensor to be ready)
+*/
+void init_sweep() {
+  full_stop();
+  current_state = SWEEPING;
+  update_servo_position(MINIMUM_SENSOR_SERVO_ANGLE);
+}
+
 /*
 Read the current angle and store it in the readings array
 Find the next angle that has no reading
 If found, set the desired angle to that and return false
 If not found, returns true
 */
-
-void start_sweep() {
-  current_state = SWEEPING;
-  desired_sensor_servo_angle = MINIMUM_SENSOR_SERVO_ANGLE;
-}
-
 boolean sensor_sweep() {
-  // read current position
+  // read current value
   if(read_sensor() == NO_READING) {
     return false;
   }
 
-  desired_sensor_servo_angle += SENSOR_ARC_DEGREES;
+  // we have a valid value, so move to the next  position
+  int desired_sensor_servo_angle = current_sensor_servo_angle + SENSOR_ARC_DEGREES;
   
-  // has a reading already, so we will get a new value but first check we haven't exceeded limits of servo
+  // we've completed from MINIMUM_SENSOR_SERVO_ANGLE to MAXIMUM_SENSOR_SERVO_ANGLE
   if(desired_sensor_servo_angle >= MAXIMUM_SENSOR_SERVO_ANGLE) {
-    desired_sensor_servo_angle = MAXIMUM_SENSOR_SERVO_ANGLE;
     return true;
   } 
   
-  if(desired_sensor_servo_angle <= MINIMUM_SENSOR_SERVO_ANGLE) {
-    desired_sensor_servo_angle = MINIMUM_SENSOR_SERVO_ANGLE;    
-  }
-  
+  update_servo_position(desired_sensor_servo_angle);
+  // keep doing the sweep
   return false; 
 }
 
-void update_servo_position() {  
+void update_servo_position(int desired_sensor_servo_angle) {  
   if(current_sensor_servo_angle != desired_sensor_servo_angle) {
     sensor_servo.write(desired_sensor_servo_angle-1);              // tell servo to go to position in variable 'pos' 
 
@@ -260,7 +259,6 @@ void update_servo_position() {
     Serial.println(desired_sensor_servo_angle);
   }
 }
-
 
 boolean potential_collision() {
   return sensor_distance_readings_cm[SENSOR_LOOKING_FORWARD_READING_INDEX] <= SAFE_DISTANCE;
@@ -285,9 +283,9 @@ int find_best_direction_degrees() {
   return NO_READING;
 }
 
-void start_turn() {
+void init_turn() {
   current_state = TURN;
-  desired_sensor_servo_angle = SENSOR_LOOKING_FORWARD_ANGLE;
+  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
   if(turn_towards < SENSOR_LOOKING_FORWARD_ANGLE) {
     go(RIGHT);
   } 
@@ -301,6 +299,20 @@ void start_turn() {
   Serial.println(expected_wait);
 }
 
+void init_go() {
+  current_state = GO;
+  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+}
+
+void init_decision() {
+  current_state = DECISION;
+  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+}
+
+void init_stuck() {
+  current_state = STUCK;
+}
+
 boolean handle_turn() {
   // turn until we expect to meet the desired angle
   return timed_operation_expired(WAIT_FOR_ROBOT_TO_TURN);
@@ -309,29 +321,24 @@ boolean handle_turn() {
 boolean check_left = true;
 
 void loop(){
-  // states above update servo position
-  update_servo_position();
-  
   int initial_state = current_state;
   switch(current_state) {
   case INITIAL:
     // wait for the first reading...
     if(read_sensor() != NO_READING) {
-      current_state = GO;
+      init_go();
     }
     break;
   case SWEEPING:
     if(sensor_sweep()) {
       // sweep completed, decision time!
-      current_state = DECISION;
-      desired_sensor_servo_angle = SENSOR_LOOKING_FORWARD_ANGLE;
+      init_decision();
     } // else keep sweeping!
     break;
   case GO: 
     if(potential_collision()) {
       // we're going to crash into something, stop and find an alternative
-      full_stop();
-      start_sweep();
+      init_sweep();
     } 
     else {
       // keep moving!
@@ -344,22 +351,22 @@ void loop(){
         if(current_sensor_servo_angle == SENSOR_LOOKING_FORWARD_ANGLE) {
           // go left or right depending on check_left
           if(check_left) {
-            desired_sensor_servo_angle = SENSOR_LOOKING_LEFT_ANGLE;
+            update_servo_position(SENSOR_LOOKING_LEFT_ANGLE);
           } else {  
-            desired_sensor_servo_angle = SENSOR_LOOKING_RIGHT_ANGLE;
+            update_servo_position(SENSOR_LOOKING_RIGHT_ANGLE);
           }
         } else {
           // check left toggles between true and false here
           check_left = !check_left;
-          // return to center; this mean we read twice as often forward than backward
-          desired_sensor_servo_angle = SENSOR_LOOKING_FORWARD_ANGLE;
+          // return to center; this mean we read twice as often forward than left or right
+          update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
         }
         
         // one of the value has been updated, check to see if we should go left or right 
         // or just keep going forward
         int left_value = get_last_reading_for_angle(SENSOR_LOOKING_LEFT_ANGLE);
-        int right_value =  get_last_reading_for_angle(SENSOR_LOOKING_RIGHT_ANGLE);
-        int forward_value =  get_last_reading_for_angle(SENSOR_LOOKING_FORWARD_ANGLE);
+        int right_value = get_last_reading_for_angle(SENSOR_LOOKING_RIGHT_ANGLE);
+        int forward_value = get_last_reading_for_angle(SENSOR_LOOKING_FORWARD_ANGLE);
         
         if(left_value > forward_value && left_value > right_value) {
           go(LEFT);
@@ -376,16 +383,16 @@ void loop(){
     // we want to turn towards the longest opening
     turn_towards = find_best_direction_degrees();
     if(turn_towards != NO_READING) {
-      start_turn();
+      init_turn();
     } 
     else {
-      current_state = STUCK;
+      init_stuck();
     }
     break;
   case STUCK:
     // TODO: check if we can reverse...
     // for now... re-sweep, maybe the obstacle will go away...
-    current_state = SWEEPING;
+    init_sweep();
     break;
   case TURN:
     read_sensor();
@@ -395,7 +402,7 @@ void loop(){
     if(handle_turn()) {
       // we've turned! reset and try to move forward now
       full_stop();
-      current_state = GO;
+      init_go();
     }
     break;
   default:
