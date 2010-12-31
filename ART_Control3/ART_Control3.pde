@@ -54,6 +54,7 @@ const int ROBOT_TURN_RATE_PER_SECOND = 90;
 const int SAFE_DISTANCE = 50;
 const int CRITICAL_DISTANCE = 20;
 enum states {
+  INITIAL = 'I',
   SWEEPING = 'S',
   GO = 'G',
   DECISION = 'D',
@@ -147,10 +148,12 @@ record current time to compare to
 void start_timed_operation(int index, int duration) {
   timed_operation_initiated_millis[index] = millis();
   timed_operation_desired_wait_millis[index] = duration;
+  /*
   Serial.print("Timer added type ");
   Serial.print(index);
   Serial.print(" wait in millis:");
   Serial.println(duration);
+  */
 }
 
 /*
@@ -184,8 +187,11 @@ int convert_reading_index(int angle) {
   return angle/SENSOR_ARC_DEGREES;
 }
 
-int read_sensor(int angle) {
-  int index = convert_reading_index(angle);
+int read_sensor() {
+  int index = convert_reading_index(current_sensor_servo_angle);
+  if(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
+    return NO_READING;
+  }
   
   if(!timed_operation_expired(WAIT_FOR_ECHO)) {
     return NO_READING;
@@ -198,13 +204,16 @@ int read_sensor(int angle) {
   if(abs(measured_value - sensor_distance_readings_cm[index]) > SENSOR_PRECISION_CM) {
     sensor_distance_readings_cm[index] = measured_value;
     Serial.print("Sensor reading:");
-    Serial.print(angle);
+    Serial.print(current_sensor_servo_angle);
     Serial.print(":");
     Serial.println(sensor_distance_readings_cm[index]);
   }
   return sensor_distance_readings_cm[index];
 }
 
+int get_last_reading_for_angle(int angle) {
+  return sensor_distance_readings_cm[convert_reading_index(angle)];
+}
 /*
 Read the current angle and store it in the readings array
 Find the next angle that has no reading
@@ -214,19 +223,12 @@ If not found, returns true
 
 void start_sweep() {
   current_state = SWEEPING;
-  /*for(int i=0; i<NUMBER_READINGS; i++) {
-    sensor_distance_readings_cm[i] = NO_READING;
-  }*/
   desired_sensor_servo_angle = MINIMUM_SENSOR_SERVO_ANGLE;
 }
 
 boolean sensor_sweep() {
-  if(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
-    return false;
-  }
-  
   // read current position
-  if(read_sensor(current_sensor_servo_angle) == NO_READING) {
+  if(read_sensor() == NO_READING) {
     return false;
   }
 
@@ -261,12 +263,10 @@ void update_servo_position() {
 
 
 boolean potential_collision() {
-  read_sensor(SENSOR_LOOKING_FORWARD_ANGLE);
   return sensor_distance_readings_cm[SENSOR_LOOKING_FORWARD_READING_INDEX] <= SAFE_DISTANCE;
 }
 
 boolean imminent_collision() {
-  read_sensor(SENSOR_LOOKING_FORWARD_ANGLE);
   return sensor_distance_readings_cm[SENSOR_LOOKING_FORWARD_READING_INDEX] <= CRITICAL_DISTANCE;
 }
 
@@ -306,9 +306,20 @@ boolean handle_turn() {
   return timed_operation_expired(WAIT_FOR_ROBOT_TO_TURN);
 }
 
+boolean check_left = true;
+
 void loop(){
+  // states above update servo position
+  update_servo_position();
+  
   int initial_state = current_state;
   switch(current_state) {
+  case INITIAL:
+    // wait for the first reading...
+    if(read_sensor() != NO_READING) {
+      current_state = GO;
+    }
+    break;
   case SWEEPING:
     if(sensor_sweep()) {
       // sweep completed, decision time!
@@ -325,6 +336,40 @@ void loop(){
     else {
       // keep moving!
       go(FORWARD);
+      
+      // we check if we have an updated value here
+      if(read_sensor() != NO_READING) {
+        // we have an updated value, if it's a center value
+        // move the servo to get left and right readings
+        if(current_sensor_servo_angle == SENSOR_LOOKING_FORWARD_ANGLE) {
+          // go left or right depending on check_left
+          if(check_left) {
+            desired_sensor_servo_angle = SENSOR_LOOKING_LEFT_ANGLE;
+          } else {  
+            desired_sensor_servo_angle = SENSOR_LOOKING_RIGHT_ANGLE;
+          }
+        } else {
+          // check left toggles between true and false here
+          check_left = !check_left;
+          // return to center; this mean we read twice as often forward than backward
+          desired_sensor_servo_angle = SENSOR_LOOKING_FORWARD_ANGLE;
+        }
+        
+        // one of the value has been updated, check to see if we should go left or right 
+        // or just keep going forward
+        int left_value = get_last_reading_for_angle(SENSOR_LOOKING_LEFT_ANGLE);
+        int right_value =  get_last_reading_for_angle(SENSOR_LOOKING_RIGHT_ANGLE);
+        int forward_value =  get_last_reading_for_angle(SENSOR_LOOKING_FORWARD_ANGLE);
+        
+        if(left_value > forward_value && left_value > right_value) {
+          go(LEFT);
+        } else if(right_value > forward_value && right_value > left_value) {
+          go(RIGHT);
+        } else {
+          suspend(LEFT);
+          suspend(RIGHT);
+        }
+      }
     }
     break;
   case DECISION:
@@ -343,6 +388,7 @@ void loop(){
     current_state = SWEEPING;
     break;
   case TURN:
+    read_sensor();
     if(imminent_collision()) {
       full_stop();
     }
@@ -356,9 +402,6 @@ void loop(){
     Serial.println("BAD STATE!");
     break;
   }
-  
-  // states above update servo position
-  update_servo_position();
 
   if(initial_state != current_state) {
     Serial.print("INITIAL STATE:");
