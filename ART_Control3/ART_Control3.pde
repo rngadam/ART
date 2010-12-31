@@ -3,10 +3,10 @@
 #include <limits.h>
 
 enum LOG_LEVELS {
-   TRACE,
-   DEBUG,
+   ERROR,
    INFO,
-   ERROR
+   DEBUG,
+   TRACE,
 };
 int LOG_LEVEL = INFO;
 
@@ -46,7 +46,7 @@ const int SENSOR_LOOKING_LEFT_ANGLE = 135;
 const int SENSOR_LOOKING_RIGHT_ANGLE = 45; 
 const int SENSOR_ARC_DEGREES = 15; // 180, 90, 15 all divisible by 15
 const int MAXIMUM_SENSOR_SERVO_ANGLE = 180;
-const int MINIMUM_SENSOR_SERVO_ANGLE = 1;
+const int MINIMUM_SENSOR_SERVO_ANGLE = 0;
 const int NUMBER_READINGS = MAXIMUM_SENSOR_SERVO_ANGLE/SENSOR_ARC_DEGREES; // 180/15 = 12 reading values in front
 const int SENSOR_LOOKING_FORWARD_READING_INDEX = SENSOR_LOOKING_FORWARD_ANGLE/SENSOR_ARC_DEGREES; // 90/15 = 6
 const int SENSOR_PRECISION_CM = 1;
@@ -175,7 +175,7 @@ boolean timed_operation_expired(int index) {
 
 int expected_wait_millis(int turn_rate, int initial_angle, int desired_angle) {
   int delta;
-  if(initial_angle < 1 || desired_angle < 1) { 
+  if(initial_angle < 0 || desired_angle < 0) { 
     return 0;
   } else if(initial_angle == desired_angle) {
     return 0;
@@ -294,12 +294,39 @@ int find_best_direction_degrees() {
   return NO_READING;
 }
 
+boolean check_left = true;
+boolean quick_sweep() {
+    // we check if we have an updated value here
+    if(read_sensor() != NO_READING) {
+      // we have an updated value, if it's a center value
+      // move the servo to get left and right readings
+      if(current_sensor_servo_angle == SENSOR_LOOKING_FORWARD_ANGLE) {
+        // go left or right depending on check_left
+        if(check_left) {
+          update_servo_position(SENSOR_LOOKING_LEFT_ANGLE);
+        } else {  
+          update_servo_position(SENSOR_LOOKING_RIGHT_ANGLE);
+        }
+      } else {
+        // check left toggles between true and false here
+        check_left = !check_left;
+        // return to center; this mean we read twice as often forward than left or right
+        update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+      }
+      return true;
+    }
+    return false;
+}
+
 void init_turn() {
+  full_stop();
   current_state = TURN;
   update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+  // 0-90 is to the right
   if(turn_towards < SENSOR_LOOKING_FORWARD_ANGLE) {
     go(RIGHT);
   } 
+  // 90 to 180 is to the left
   else {
     go(LEFT);
   }
@@ -310,6 +337,11 @@ void init_turn() {
     Serial.print("Waiting for robot to turn millis: ");
     Serial.println(expected_wait);
   }
+}
+
+boolean handle_turn() {
+  // turn until we expect to meet the desired angle
+  return timed_operation_expired(WAIT_FOR_ROBOT_TO_TURN);
 }
 
 void init_go() {
@@ -323,15 +355,9 @@ void init_decision() {
 }
 
 void init_stuck() {
+  full_stop();
   current_state = STUCK;
 }
-
-boolean handle_turn() {
-  // turn until we expect to meet the desired angle
-  return timed_operation_expired(WAIT_FOR_ROBOT_TO_TURN);
-}
-
-boolean check_left = true;
 
 void loop(){
   int initial_state = current_state;
@@ -356,25 +382,7 @@ void loop(){
     else {
       // keep moving!
       go(FORWARD);
-      
-      // we check if we have an updated value here
-      if(read_sensor() != NO_READING) {
-        // we have an updated value, if it's a center value
-        // move the servo to get left and right readings
-        if(current_sensor_servo_angle == SENSOR_LOOKING_FORWARD_ANGLE) {
-          // go left or right depending on check_left
-          if(check_left) {
-            update_servo_position(SENSOR_LOOKING_LEFT_ANGLE);
-          } else {  
-            update_servo_position(SENSOR_LOOKING_RIGHT_ANGLE);
-          }
-        } else {
-          // check left toggles between true and false here
-          check_left = !check_left;
-          // return to center; this mean we read twice as often forward than left or right
-          update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
-        }
-        
+      if(quick_sweep()) {
         // one of the value has been updated, check to see if we should go left or right 
         // or just keep going forward
         int left_value = get_last_reading_for_angle(SENSOR_LOOKING_LEFT_ANGLE);
@@ -403,18 +411,20 @@ void loop(){
     }
     break;
   case STUCK:
-    // TODO: check if we can reverse...
-    // for now... re-sweep, maybe the obstacle will go away...
-    init_sweep();
+    go(REVERSE);
+    if(quick_sweep()) {
+      if(!potential_collision()) {
+        init_sweep();
+      }
+    }
     break;
   case TURN:
     read_sensor();
     if(imminent_collision()) {
-      full_stop();
+      init_stuck();
     }
     if(handle_turn()) {
       // we've turned! reset and try to move forward now
-      full_stop();
       init_go();
     }
     break;
