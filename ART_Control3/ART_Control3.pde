@@ -24,7 +24,7 @@ Temperature:0-60 Celius degree
 Size：40.2 x 20.2 x 43.2mm
 Weight：48g
 */
-const int SERVO_TURN_RATE_PER_SECOND = 300; // 60/0.2
+const int SERVO_TURN_RATE_PER_SECOND = 100; // 60/(0.2*3) where 3 is caused by load?
 
 /* 
 HC-SR04 Ultrasonic sensor
