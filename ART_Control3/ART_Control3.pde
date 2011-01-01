@@ -267,7 +267,7 @@ int get_forward_time_millis() {
 
 int get_backward_time_millis() {
   // same logic because we don't have a front sensor...
-  int max_time = map(analogRead(FORWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
+  int max_time = map(analogRead(BACKWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
   int time = map(current_max_distance, 0, SENSOR_MAX_RANGE_CM, 0, max_time);
   return time;
 }
