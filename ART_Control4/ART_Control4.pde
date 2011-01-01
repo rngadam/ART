@@ -388,21 +388,23 @@ Find out where we get the best distance range and go towards that
 int quick_decision() {
   // one of the value has been updated, check to see if we should go left or right 
   // or just keep going forward
-  TripleReadings readings;
-  fill_data(ULTRASONIC_FORWARD, readings);
-  if(readings.current_max_distance < SAFE_DISTANCE) {
-    fill_data(ULTRASONIC_REVERSE, readings);
-    if(readings.current_max_distance < SAFE_DISTANCE) {
+  TripleReadings readings_forward;
+  TripleReadings readings_reverse;
+  fill_data(ULTRASONIC_REVERSE, readings_forward);
+  fill_data(ULTRASONIC_FORWARD, readings_reverse);
+  if(readings_forward.current_max_distance < CRITICAL_DISTANCE || (readings_forward.current_max_distance < SAFE_DISTANCE && readings_forward.current_max_distance < readings_reverse.current_max_distance)) {
+    if(readings_reverse.current_max_distance < CRITICAL_DISTANCE) {
       return NO_READING;
     }
-    if(all_safe(readings)) {
+    if(all_safe(readings_reverse)) {
       if(previous_state == FORWARD_LEFT_UNIT) {
-        return REVERSE_RIGHT_UNIT;
-      } else if(previous_state == FORWARD_RIGHT_UNIT) {
         return REVERSE_LEFT_UNIT;
+      } else if(previous_state == FORWARD_RIGHT_UNIT) {
+        return REVERSE_RIGHT_UNIT;
       }
     }
-    switch(readings.dir) {
+    
+    switch(readings_reverse.dir) {
     case LEFT:
       return REVERSE_RIGHT_UNIT;
       break;
@@ -414,7 +416,8 @@ int quick_decision() {
       break;
     }
   }
-  switch(readings.dir) {
+  
+  switch(readings_forward.dir) {
   case LEFT:
     return FORWARD_LEFT_UNIT;
     break;
