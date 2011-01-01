@@ -8,7 +8,7 @@ enum LOG_LEVELS {
    DEBUG,
    TRACE,
 };
-int LOG_LEVEL = INFO;
+int LOG_LEVEL = TRACE;
 
 // various directions we can go to
 const int FORWARD =  2;      // the number of the LED pin
@@ -281,7 +281,9 @@ if you don't use this, you need to check yourself that the timer has expired...
 */
 void safe_update_servo_position(int desired_sensor_servo_angle) {  
     update_servo_position(desired_sensor_servo_angle);
-    while(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN));
+    while(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
+      delay(10);
+    }
 }
 
 void update_servo_position(int desired_sensor_servo_angle) {  
@@ -352,8 +354,10 @@ int quick_decision() {
 completes once the sensor has readings left, right and center
 */
 boolean check_left;
+int quick_sweep_number_readings;
 void init_quick_sweep() {
   full_stop();
+  quick_sweep_number_readings = 0;
   check_left = true; // always want to go left first
   current_state = QUICK_SWEEP;
   safe_update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
@@ -362,6 +366,7 @@ void init_quick_sweep() {
 boolean quick_sweep() {
     // we check if we have an updated value here
     if(read_sensor() != NO_READING) {
+      quick_sweep_number_readings++;
       // we have an updated value, if it's a center value
       // move the servo to get left and right readings
       if(current_sensor_servo_angle == SENSOR_LOOKING_FORWARD_ANGLE) {
@@ -453,21 +458,27 @@ void init_direction_unit(int decision) {
 
 void init_direction_reverse_unit(int dir) {  
   full_stop();
+  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, FORWARD_TIME_UNIT_MILLIS);
   go(REVERSE);
   switch(dir) {
-    LEFT:
+    case LEFT:
       current_state = REVERSE_LEFT_UNIT;
       go(RIGHT); // going left reverse means wheels pointing right
       break;
-    RIGHT:
+    case RIGHT:
       current_state = REVERSE_RIGHT_UNIT;
       go(LEFT); // going right reverse means wheels pointing left
       break;
-    REVERSE:
+    case REVERSE:
       current_state = REVERSE_UNIT;
       break;
+    default:
+      if(LOG_LEVEL >= ERROR) {
+        Serial.print("BAD STATE IN init_direction_reverse_unit:");
+        Serial.println(dir);
+      }
+      break;
   }
-  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, FORWARD_TIME_UNIT_MILLIS);
 }
 
 void loop(){
@@ -541,7 +552,7 @@ void loop(){
   case QUICK_SWEEP:
     if(quick_sweep()) {
       // sweep has read one more reading
-      if(current_sensor_servo_angle == SENSOR_LOOKING_RIGHT_ANGLE) {
+      if(quick_sweep_number_readings == 3) {
         // we've completed three readings
         init_quick_decision();
       }
@@ -568,7 +579,8 @@ void loop(){
     break;
   default:
     if(LOG_LEVEL >= ERROR) { 
-      Serial.println("BAD STATE!");
+        Serial.print("BAD STATE IN main loop:");
+        Serial.println(current_state);
     }
     break;
   }
