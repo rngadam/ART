@@ -71,7 +71,7 @@ const int ROBOT_TURN_RATE_PER_SECOND = 90;
 const int SAFE_DISTANCE = 50;
 const int CRITICAL_DISTANCE = 20;
 const int MAX_TIME_UNIT_MILLIS = 3000;
-
+const int MIN_TIME_UNIT_MILLIS = 300;
 enum states {
   // start state
   INITIAL = 'I',
@@ -105,7 +105,7 @@ const int NO_READING = -1;
 char current_state = STOP;
 // contains target angle
 int turn_towards;
-int current_max_distance;
+int current_max_distance = SAFE_DISTANCE; // needs a value for backward
 
 enum {
   WAIT_FOR_SERVO_TO_TURN,
@@ -260,15 +260,15 @@ int get_last_reading_for_angle(int angle) {
 }
 
 int get_forward_time_millis() {
-  int max_time = map(analogRead(FORWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
-  int time = map(current_max_distance, 0, SENSOR_MAX_RANGE_CM, 0, max_time);
+  int max_time = map(analogRead(FORWARD_POT), 0, 1024, MIN_TIME_UNIT_MILLIS, MAX_TIME_UNIT_MILLIS);
+  int time = map(current_max_distance, 0, SENSOR_MAX_RANGE_CM, MIN_TIME_UNIT_MILLIS, max_time);
   return time;
 }
 
 int get_backward_time_millis() {
   // same logic because we don't have a front sensor...
-  int max_time = map(analogRead(BACKWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
-  int time = map(current_max_distance, 0, SENSOR_MAX_RANGE_CM, 0, max_time);
+  int max_time = map(analogRead(BACKWARD_POT), 0, 1024, MIN_TIME_UNIT_MILLIS, MAX_TIME_UNIT_MILLIS);
+  int time = map(current_max_distance, 0, SENSOR_MAX_RANGE_CM, MIN_TIME_UNIT_MILLIS, max_time);
   return time;
 }
 
@@ -391,10 +391,9 @@ int quick_decision() {
 completes once the sensor has readings left, right and center
 */
 boolean check_left;
-int quick_sweep_number_readings;
+int quick_sweep_number_readings = 0; // use modulo 4 to get every three readings
 void init_quick_sweep() {
   full_stop();
-  quick_sweep_number_readings = 0;
   check_left = true; // always want to go left first
   current_state = QUICK_SWEEP;
   safe_update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
@@ -629,7 +628,7 @@ void loop(){
   case QUICK_SWEEP:
     if(quick_sweep()) {
       // sweep has read one more reading
-      if(quick_sweep_number_readings == 3) {
+      if(quick_sweep_number_readings % 4 == 0) {
         // we've completed three readings
         init_quick_decision();
       }
