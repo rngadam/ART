@@ -18,12 +18,10 @@ const int REVERSE =  3;
 const int LEFT = 4;  
 const int RIGHT =  5;  
 // ultrasonic
-const int ULTRASONIC_FORWARD_TRIG = 8;
-const int ULTRASONIC_FORWARD_ECHO = 9;
-const int ULTRASONIC_BACKWARD_TRIG = 0;
-const int ULTRASONIC_BACKWARD_ECHO = 1;
+const int ULTRASONIC_TRIG = 8;
+const int ULTRASONIC_ECHO = 9;
 // servo
-const int SENSOR_SERVO = 11;
+const int SENSOR_SERVO = 13;
 // analog adjustments
 const int FORWARD_POT = A5;
 const int BACKWARD_POT = A4;
