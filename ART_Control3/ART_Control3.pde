@@ -10,16 +10,23 @@ enum LOG_LEVELS {
 };
 int LOG_LEVEL = TRACE;
 
+// Arduino pins mapping
+
 // various directions we can go to
 const int FORWARD =  2;      // the number of the LED pin
 const int REVERSE =  3;  
 const int LEFT = 4;  
 const int RIGHT =  5;  
-
-// Arduino pins mapping
-const int SENSOR_SERVO = 11;
+// ultrasonic
 const int ULTRASONIC_TRIG = 8;
 const int ULTRASONIC_ECHO = 9;
+// servo
+const int SENSOR_SERVO = 11;
+// analog adjustments
+const int FORWARD_POT = A5;
+const int BACKWARD_POT = A4;
+// buttons
+const int PUSHBUTTON = 7;
 
 /*
 We're sweeping the servo either left or right
@@ -61,7 +68,7 @@ Robot related information
 const int ROBOT_TURN_RATE_PER_SECOND = 90;
 const int SAFE_DISTANCE = 50;
 const int CRITICAL_DISTANCE = 20;
-const int FORWARD_TIME_UNIT_MILLIS = 500;
+const int MAX_TIME_UNIT_MILLIS = 3000;
 
 enum states {
   // start state
@@ -86,13 +93,14 @@ enum states {
   
   // end state
   STUCK = 'K',
+  STOP = '.'
 };
 
 // Global variable
 // this contains readings from a sweep
 int sensor_distance_readings_cm[NUMBER_READINGS];
 const int NO_READING = -1;
-char current_state = INITIAL;
+char current_state = STOP;
 // contains target angle
 int turn_towards;
 
@@ -102,6 +110,7 @@ enum {
   WAIT_FOR_ECHO,
   WAIT_FOR_ROBOT_TO_MOVE,
   WAIT_FOR_ROBOT_TO_ADVANCE_UNIT,
+  WAIT_FOR_BUTTON_REREAD,
   WAIT_ARRAY_SIZE, // always last...
 };
 
@@ -121,6 +130,12 @@ void setup() {
   pinMode(REVERSE, OUTPUT);    
   pinMode(LEFT, OUTPUT);  
   pinMode(RIGHT, OUTPUT);  
+  // input potentiometer
+  pinMode(FORWARD_POT, INPUT);
+  pinMode(BACKWARD_POT, INPUT);
+  //buttons
+  pinMode(PUSHBUTTON, INPUT);
+  
   full_stop();
   sensor_servo.attach(SENSOR_SERVO);
   for(int i=0; i<WAIT_ARRAY_SIZE; i++) {
@@ -239,6 +254,14 @@ int read_sensor() {
 
 int get_last_reading_for_angle(int angle) {
   return sensor_distance_readings_cm[convert_reading_index(angle)];
+}
+
+int get_forward_time_millis() {
+  return map(analogRead(FORWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
+}
+
+int get_backward_time_millis() {
+  return map(analogRead(BACKWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
 }
 
 /*
@@ -442,7 +465,7 @@ void init_direction_unit(int decision) {
     return; // switching state
   }
   
-  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, FORWARD_TIME_UNIT_MILLIS);
+  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, get_forward_time_millis());
   go(FORWARD);
   switch(decision) {
     case LEFT:
@@ -468,7 +491,7 @@ void init_direction_unit(int decision) {
 
 void init_direction_reverse_unit(int dir) {  
   full_stop();
-  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, FORWARD_TIME_UNIT_MILLIS);
+  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, get_backward_time_millis());
   go(REVERSE);
   switch(dir) {
     case LEFT:
@@ -491,8 +514,30 @@ void init_direction_reverse_unit(int dir) {
   }
 }
 
+void check_button() {
+  // read the state of the pushbutton value:
+  if(!timed_operation_expired(WAIT_FOR_BUTTON_REREAD)) {
+    return;
+  }
+  int buttonState = digitalRead(PUSHBUTTON);
+  // check if the pushbutton is pressed.
+  // if it is, the buttonState is HIGH:
+  if (buttonState == HIGH) {     
+    if(LOG_LEVEL >= INFO) {
+      Serial.println("Button pressed!");
+    }
+    if(current_state == STOP) {
+      current_state = INITIAL;
+    } else {
+      current_state = STOP;
+    }
+    start_timed_operation(WAIT_FOR_BUTTON_REREAD, 1000);
+  } 
+}
+
 void loop(){
   int initial_state = current_state;
+  check_button();
   switch(current_state) {
   // initial; this initiates what type of sub-state-machine we want to use
   // dynamic: more complex states that are supposed to adjust while moving
@@ -596,6 +641,14 @@ void loop(){
     // all directions work the same: we wait!
     if(timed_operation_expired(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT)) {
       init_quick_sweep();
+    }
+    break;
+  case STOP:
+    // do nothing...
+    if(LOG_LEVEL >= INFO) {
+      if(millis() % 1000 == 0) {
+        Serial.print('.');
+      }
     }
     break;
   default:
