@@ -24,7 +24,7 @@ const int LEFT_PIN = 8;
 const int RIGHT_PIN =  9;  
 const int PUSHBUTTON_PIN = 10;
 // servo
-const int SENSOR_SERVO_PIN = 13;
+const int SENSOR_SERVO_PIN = 12;
 
 // analog adjustments
 const int FORWARD_POT_PIN = A5;
@@ -79,7 +79,6 @@ const int MIN_TIME_UNIT_MILLIS = 500;
 enum states {
   // start state
   INITIAL = 'I',
-  FULL_SWEEP = 'S',
   QUICK_SWEEP = 'Q',
   // units advancement
   FORWARD_LEFT_UNIT = '1',
@@ -90,7 +89,6 @@ enum states {
   REVERSE_RIGHT_UNIT = '6',
   // decision making
   QUICK_DECISION = '?',
-  
   // end state
   STUCK = 'K',
   STOP = '.'
@@ -298,14 +296,6 @@ int get_backward_time_millis() {
 }
 
 /*
-Initialize sweep (setting state and position sensor to be ready)
-*/
-void init_sweep() {
-  current_state = FULL_SWEEP;
-  safe_update_servo_position(MINIMUM_SENSOR_SERVO_ANGLE);
-}
-
-/*
 make sure that the servo is at target position before returning
 if you don't use this, you need to check yourself that the timer has expired...
 */
@@ -395,7 +385,7 @@ int quick_decision() {
          return REVERSE_LEFT_UNIT;
          break;
       case FORWARD:
-         return REVERSE;
+         return REVERSE_UNIT;
          break;
     }
   }
@@ -481,7 +471,7 @@ void init_quick_decision() {
 int previous_state = FORWARD_UNIT;
 void init_direction_unit(int decision) {
   full_stop();
-  
+  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);  
   switch(decision) {
     case FORWARD_LEFT_UNIT:
       go(LEFT);
@@ -594,6 +584,11 @@ void loop(){
     // all directions work the same: we wait!
     if(timed_operation_expired(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT)) {
       init_quick_sweep();
+    }
+    if(read_sensor(ULTRASONIC_FORWARD, sensor_forward) != NO_READING) {
+      if(potential_collision(ULTRASONIC_FORWARD)) {
+        init_quick_sweep();
+      }
     }
     break;
   case STOP:
