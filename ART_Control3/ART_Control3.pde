@@ -336,16 +336,19 @@ int quick_decision() {
   int forward_value = get_last_reading_for_angle(SENSOR_LOOKING_FORWARD_ANGLE);
   
   if(left_value > forward_value && left_value > right_value) {
-    if(left_value < SAFE_DISTANCE);
+    if(left_value < SAFE_DISTANCE) {
       return REVERSE;
+    }
     return LEFT;
   } else if(right_value > forward_value && right_value > left_value) {
-    if(right_value < SAFE_DISTANCE);
+    if(right_value < SAFE_DISTANCE) {
       return REVERSE;
+    }
     return RIGHT;
   } else {
-    if(forward_value < SAFE_DISTANCE);
-      return REVERSE;
+    if(forward_value < SAFE_DISTANCE) {
+      return REVERSE; 
+    }
     return FORWARD;
   }
 }
