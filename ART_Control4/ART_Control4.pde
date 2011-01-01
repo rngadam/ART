@@ -144,7 +144,7 @@ char current_state = STOP;
 // contains target angle
 int turn_towards;
 int current_max_distance = SAFE_DISTANCE; // needs a value for backward
-
+int previous_state = FORWARD_UNIT;
 int timed_operation_initiated_millis[WAIT_ARRAY_SIZE];
 int timed_operation_desired_wait_millis[WAIT_ARRAY_SIZE];
 
@@ -375,6 +375,12 @@ int fill_data(int sensor, TripleReadings& readings) {
   }
 }
 
+boolean all_safe(TripleReadings& readings) {
+  if(readings.left >= SAFE_DISTANCE && readings.left >= SAFE_DISTANCE && readings.left >= SAFE_DISTANCE) {
+    return true;
+  }
+  return false;
+}
 /*
 Find out where we get the best distance range and go towards that
  If all the distances in front are unsafe, return REVERSE
@@ -388,6 +394,13 @@ int quick_decision() {
     fill_data(ULTRASONIC_REVERSE, readings);
     if(readings.current_max_distance < SAFE_DISTANCE) {
       return NO_READING;
+    }
+    if(all_safe(readings)) {
+      if(previous_state == FORWARD_LEFT_UNIT) {
+        return REVERSE_RIGHT_UNIT;
+      } else if(previous_state == FORWARD_RIGHT_UNIT) {
+        return REVERSE_LEFT_UNIT;
+      }
     }
     switch(readings.dir) {
     case LEFT:
@@ -479,7 +492,7 @@ void init_quick_decision() {
   full_stop();
   current_state = QUICK_DECISION;
 }
-int previous_state = FORWARD_UNIT;
+
 void init_direction_unit(int decision) {
   full_stop();
   update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);  
