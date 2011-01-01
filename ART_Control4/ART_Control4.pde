@@ -146,7 +146,7 @@ int current_sensor_servo_angle = 0;
 // Two useful objects...
 Servo sensor_servo;  // create servo object to control a servo 
 Ultrasonic sensor_forward = Ultrasonic(ULTRASONIC_FORWARD_TRIG, ULTRASONIC_FORWARD_ECHO);
-Ultrasonic sensor_backward = Ultrasonic(ULTRASONIC_REVERSE_TRIG, ULTRASONIC_REVERSE_ECHO);
+Ultrasonic sensor_reverse = Ultrasonic(ULTRASONIC_REVERSE_TRIG, ULTRASONIC_REVERSE_ECHO);
 
 void setup() { 
   // these map to the contact switches on the RF
@@ -424,7 +424,6 @@ void init_quick_sweep() {
   sensor_array_read_next = FORWARD_DIR;
   update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
   current_state = QUICK_SWEEP;
-  
 }
 
 boolean quick_sweep() {
@@ -439,7 +438,7 @@ boolean quick_sweep() {
       case REVERSE_LEFT_DIR:
       case REVERSE_DIR:
       case REVERSE_RIGHT_DIR:
-        read_value = read_sensor(ULTRASONIC_REVERSE, sensor_forward);
+        read_value = read_sensor(ULTRASONIC_REVERSE, sensor_reverse);
         break;
     }
     if(read_value != NO_READING) {
