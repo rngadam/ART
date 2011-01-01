@@ -61,21 +61,38 @@ Robot related information
 const int ROBOT_TURN_RATE_PER_SECOND = 90;
 const int SAFE_DISTANCE = 50;
 const int CRITICAL_DISTANCE = 20;
+const int FORWARD_TIME_UNIT_MILLIS = 1000;
+
 enum states {
+  // start state
   INITIAL = 'I',
-  SWEEPING = 'S',
-  GO = 'G',
+  FULL_SWEEP = 'S',
+  QUICK_SWEEP = 'Q',
+  // dynamic requires fast sensor readings
+  DYNAMIC_FORWARD = 'F',
+  DYNAMIC_REVERSE = 'B',
+  DYNAMIC_TURN = 'T',
   DECISION = 'D',
+  // units advancement
+  FORWARD_LEFT_UNIT = '1',
+  FORWARD_UNIT = '2',
+  FORWARD_RIGHT_UNIT = '3',
+  REVERSE_LEFT_UNIT = '4',
+  REVERSE_UNIT = '5',
+  REVERSE_RIGHT_UNIT = '6',
+  // decision making
+  QUICK_DECISION = '?',
+  REVERSE_QUICK_DECISION = '<',
+  
+  // end state
   STUCK = 'K',
-  TURN = 'T',
 };
 
 // Global variable
 // this contains readings from a sweep
 int sensor_distance_readings_cm[NUMBER_READINGS];
 const int NO_READING = -1;
-// we start with a sweep
-char current_state = SWEEPING;
+char current_state = INITIAL;
 // contains target angle
 int turn_towards;
 
@@ -83,7 +100,9 @@ enum {
   WAIT_FOR_SERVO_TO_TURN,
   WAIT_FOR_ROBOT_TO_TURN,
   WAIT_FOR_ECHO,
-  WAIT_ARRAY_SIZE
+  WAIT_FOR_ROBOT_TO_MOVE,
+  WAIT_FOR_ROBOT_TO_ADVANCE_UNIT,
+  WAIT_ARRAY_SIZE, // always last...
 };
 
 int timed_operation_initiated_millis[WAIT_ARRAY_SIZE];
@@ -108,7 +127,7 @@ void setup() {
     timed_operation_initiated_millis[i] = 0;  
     timed_operation_desired_wait_millis[i] = 0;
   }
-  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);   
+  safe_update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);   
   Serial.begin(9600);
 }
 
@@ -226,9 +245,8 @@ int get_last_reading_for_angle(int angle) {
 Initialize sweep (setting state and position sensor to be ready)
 */
 void init_sweep() {
-  full_stop();
-  current_state = SWEEPING;
-  update_servo_position(MINIMUM_SENSOR_SERVO_ANGLE);
+  current_state = FULL_SWEEP;
+  safe_update_servo_position(MINIMUM_SENSOR_SERVO_ANGLE);
 }
 
 /*
@@ -251,9 +269,19 @@ boolean sensor_sweep() {
     return true;
   } 
   
+  // we always use read_sensor() before reaching here
   update_servo_position(desired_sensor_servo_angle);
   // keep doing the sweep
   return false; 
+}
+
+/*
+make sure that the servo is at target position before returning
+if you don't use this, you need to check yourself that the timer has expired...
+*/
+void safe_update_servo_position(int desired_sensor_servo_angle) {  
+    update_servo_position(desired_sensor_servo_angle);
+    while(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN));
 }
 
 void update_servo_position(int desired_sensor_servo_angle) {  
@@ -294,7 +322,43 @@ int find_best_direction_degrees() {
   return NO_READING;
 }
 
-boolean check_left = true;
+/*
+Find out where we get the best distance range and go towards that
+If all the distances in front are unsafe, return REVERSE
+*/
+int quick_decision() {
+  // one of the value has been updated, check to see if we should go left or right 
+  // or just keep going forward
+  int left_value = get_last_reading_for_angle(SENSOR_LOOKING_LEFT_ANGLE);
+  int right_value = get_last_reading_for_angle(SENSOR_LOOKING_RIGHT_ANGLE);
+  int forward_value = get_last_reading_for_angle(SENSOR_LOOKING_FORWARD_ANGLE);
+  
+  if(left_value > forward_value && left_value > right_value) {
+    if(left_value < SAFE_DISTANCE);
+      return REVERSE;
+    return LEFT;
+  } else if(right_value > forward_value && right_value > left_value) {
+    if(right_value < SAFE_DISTANCE);
+      return REVERSE;
+    return RIGHT;
+  } else {
+    if(forward_value < SAFE_DISTANCE);
+      return REVERSE;
+    return FORWARD;
+  }
+}
+
+/*
+completes once the sensor has readings left, right and center
+*/
+boolean check_left;
+void init_quick_sweep() {
+  full_stop();
+  check_left = true; // always want to go left first
+  current_state = QUICK_SWEEP;
+  safe_update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+}
+
 boolean quick_sweep() {
     // we check if we have an updated value here
     if(read_sensor() != NO_READING) {
@@ -303,8 +367,10 @@ boolean quick_sweep() {
       if(current_sensor_servo_angle == SENSOR_LOOKING_FORWARD_ANGLE) {
         // go left or right depending on check_left
         if(check_left) {
+          // inside read_sensor() which guarantees servo timer expired
           update_servo_position(SENSOR_LOOKING_LEFT_ANGLE);
         } else {  
+          // inside read_sensor() which guarantees servo timer expired
           update_servo_position(SENSOR_LOOKING_RIGHT_ANGLE);
         }
       } else {
@@ -320,8 +386,8 @@ boolean quick_sweep() {
 
 void init_turn() {
   full_stop();
-  current_state = TURN;
-  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+  current_state = DYNAMIC_TURN;
+  safe_update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
   // 0-90 is to the right
   if(turn_towards < SENSOR_LOOKING_FORWARD_ANGLE) {
     go(RIGHT);
@@ -339,19 +405,16 @@ void init_turn() {
   }
 }
 
-boolean handle_turn() {
-  // turn until we expect to meet the desired angle
-  return timed_operation_expired(WAIT_FOR_ROBOT_TO_TURN);
-}
-
-void init_go() {
-  current_state = GO;
-  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+void init_go_forward() {
+  full_stop();
+  current_state = DYNAMIC_FORWARD;
+  safe_update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
 }
 
 void init_decision() {
+  full_stop();
   current_state = DECISION;
-  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+  safe_update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
 }
 
 void init_stuck() {
@@ -359,43 +422,88 @@ void init_stuck() {
   current_state = STUCK;
 }
 
+void init_quick_decision() {
+  full_stop();
+  current_state = QUICK_DECISION;
+}
+
+void init_direction_unit(int decision) {
+  full_stop();
+  if(decision == REVERSE) {
+    current_state = REVERSE_QUICK_DECISION;
+    return; // switching state
+  }
+  
+  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, FORWARD_TIME_UNIT_MILLIS);
+  go(FORWARD);
+  switch(decision) {
+    LEFT:
+      current_state = FORWARD_LEFT_UNIT;
+      go(LEFT);
+      break;
+    RIGHT:
+      current_state = FORWARD_RIGHT_UNIT;
+      go(RIGHT);
+      break;
+    FORWARD:
+      current_state = FORWARD_UNIT;
+      break;
+  }
+}
+
+void init_direction_reverse_unit(int dir) {  
+  full_stop();
+  go(REVERSE);
+  switch(dir) {
+    LEFT:
+      current_state = REVERSE_LEFT_UNIT;
+      go(RIGHT); // going left reverse means wheels pointing right
+      break;
+    RIGHT:
+      current_state = REVERSE_RIGHT_UNIT;
+      go(LEFT); // going right reverse means wheels pointing left
+      break;
+    REVERSE:
+      current_state = REVERSE_UNIT;
+      break;
+  }
+  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, FORWARD_TIME_UNIT_MILLIS);
+}
+
 void loop(){
   int initial_state = current_state;
   switch(current_state) {
+  // initial; this initiates what type of sub-state-machine we want to use
+  // dynamic: more complex states that are supposed to adjust while moving
+  // unit: move one unit, scan, decide, move one unit, scan, decide, move one unit...
   case INITIAL:
     // wait for the first reading...
     if(read_sensor() != NO_READING) {
-      init_go();
+      init_quick_sweep(); // change this to change sub-state-machine
     }
     break;
-  case SWEEPING:
+    
+  // dynamic states
+  case FULL_SWEEP:
     if(sensor_sweep()) {
       // sweep completed, decision time!
       init_decision();
     } // else keep sweeping!
     break;
-  case GO: 
+  case DYNAMIC_FORWARD:
     if(potential_collision()) {
       // we're going to crash into something, stop and find an alternative
       init_sweep();
-    } 
-    else {
-      // keep moving!
+    } else { 
       go(FORWARD);
       if(quick_sweep()) {
-        // one of the value has been updated, check to see if we should go left or right 
-        // or just keep going forward
-        int left_value = get_last_reading_for_angle(SENSOR_LOOKING_LEFT_ANGLE);
-        int right_value = get_last_reading_for_angle(SENSOR_LOOKING_RIGHT_ANGLE);
-        int forward_value = get_last_reading_for_angle(SENSOR_LOOKING_FORWARD_ANGLE);
-        
-        if(left_value > forward_value && left_value > right_value) {
-          go(LEFT);
-        } else if(right_value > forward_value && right_value > left_value) {
-          go(RIGHT);
+        suspend(LEFT);
+        suspend(RIGHT);
+        int decision = quick_decision();
+        if(decision == REVERSE) {
+          init_stuck();
         } else {
-          suspend(LEFT);
-          suspend(RIGHT);
+          go(decision);
         }
       }
     }
@@ -410,6 +518,16 @@ void loop(){
       init_stuck();
     }
     break;
+  case DYNAMIC_TURN:
+    read_sensor();
+    if(imminent_collision()) {
+      init_stuck();
+    }
+    if(timed_operation_expired(WAIT_FOR_ROBOT_TO_TURN)) {
+      // we've turned! reset and try to move forward now
+      init_go_forward();
+    }
+    break;
   case STUCK:
     go(REVERSE);
     if(quick_sweep()) {
@@ -418,14 +536,34 @@ void loop(){
       }
     }
     break;
-  case TURN:
-    read_sensor();
-    if(imminent_collision()) {
-      init_stuck();
+  
+  // unit behavior
+  case QUICK_SWEEP:
+    if(quick_sweep()) {
+      // sweep has read one more reading
+      if(current_sensor_servo_angle == SENSOR_LOOKING_RIGHT_ANGLE) {
+        // we've completed three readings
+        init_quick_decision();
+      }
     }
-    if(handle_turn()) {
-      // we've turned! reset and try to move forward now
-      init_go();
+    break;
+  case QUICK_DECISION:
+    init_direction_unit(quick_decision());
+    break;
+  case REVERSE_QUICK_DECISION:
+    // no sensors to tell us if we can reverse
+    // or what direction to prefer so we always do...
+    init_direction_reverse_unit(REVERSE);
+    break;
+  case FORWARD_UNIT:
+  case FORWARD_LEFT_UNIT:
+  case FORWARD_RIGHT_UNIT:
+  case REVERSE_UNIT:
+  case REVERSE_LEFT_UNIT:
+  case REVERSE_RIGHT_UNIT:
+    // all directions work the same: we wait!
+    if(timed_operation_expired(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT)) {
+      init_quick_sweep();
     }
     break;
   default:
