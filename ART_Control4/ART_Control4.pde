@@ -397,8 +397,8 @@ int quick_decision() {
   // or just keep going forward
   TripleReadings readings_forward;
   TripleReadings readings_reverse;
-  fill_data(ULTRASONIC_REVERSE, readings_forward);
-  fill_data(ULTRASONIC_FORWARD, readings_reverse);
+  fill_data(ULTRASONIC_REVERSE, readings_reverse);
+  fill_data(ULTRASONIC_FORWARD, readings_forward);
   if(readings_forward.current_max_distance < CRITICAL_DISTANCE || (readings_forward.current_max_distance < SAFE_DISTANCE && readings_forward.current_max_distance < readings_reverse.current_max_distance)) {
     if(readings_reverse.current_max_distance < CRITICAL_DISTANCE) {
       return NO_READING;
