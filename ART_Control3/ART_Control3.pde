@@ -305,7 +305,7 @@ if you don't use this, you need to check yourself that the timer has expired...
 void safe_update_servo_position(int desired_sensor_servo_angle) {  
     update_servo_position(desired_sensor_servo_angle);
     while(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
-      delay(10);
+      check_button();
     }
 }
 
@@ -529,6 +529,7 @@ void check_button() {
     if(current_state == STOP) {
       current_state = INITIAL;
     } else {
+      full_stop();
       current_state = STOP;
     }
     start_timed_operation(WAIT_FOR_BUTTON_REREAD, 1000);
