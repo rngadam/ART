@@ -496,7 +496,12 @@ void init_direction_unit(int decision) {
       break;
   }
   last_forward_state = current_state;
-  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, get_forward_time_millis());
+  int forward_time_millis = get_forward_time_millis();
+  if(LOG_LEVEL>=INFO) {
+    Serial.print("Will move for (ms): ");
+    Serial.println(forward_time_millis);
+  }
+  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, forward_time_millis);
   go(FORWARD);
 }
 
@@ -521,7 +526,12 @@ void init_direction_reverse_unit(int dir) {
       }
       break;
   }
-  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, get_backward_time_millis());
+  int backward_time_millis = get_backward_time_millis();
+  if(LOG_LEVEL>=INFO) {
+    Serial.print("Will move for (ms): ");
+    Serial.println(backward_time_millis);
+  }
+  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, backward_time_millis);
   go(REVERSE);
 }
 
