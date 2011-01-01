@@ -8,7 +8,7 @@ enum LOG_LEVELS {
    DEBUG,
    TRACE,
 };
-int LOG_LEVEL = TRACE;
+int LOG_LEVEL = DEBUG;
 
 // Arduino pins mapping
 
@@ -57,10 +57,12 @@ const int MINIMUM_SENSOR_SERVO_ANGLE = 0;
 const int NUMBER_READINGS = MAXIMUM_SENSOR_SERVO_ANGLE/SENSOR_ARC_DEGREES; // 180/15 = 12 reading values in front
 const int SENSOR_LOOKING_FORWARD_READING_INDEX = SENSOR_LOOKING_FORWARD_ANGLE/SENSOR_ARC_DEGREES; // 90/15 = 6
 const int SENSOR_PRECISION_CM = 1;
+const int SENSOR_MAX_RANGE_CM = 500;
 // speed of sound at sea level = 340.29 m / s
 // spec range is 5m * 2 (return) = 10m
 // 10 / 341 = ~0.029
-const int SENSOR_MINIMAL_WAIT_ECHO_MILLIS = 29;
+const int SPEED_OF_SOUND_CM_PER_S = 34000;
+const int SENSOR_MINIMAL_WAIT_ECHO_MILLIS = (SENSOR_MAX_RANGE_CM*2*1000)/SPEED_OF_SOUND_CM_PER_S;
 
 /*
 Robot related information
@@ -103,6 +105,7 @@ const int NO_READING = -1;
 char current_state = STOP;
 // contains target angle
 int turn_towards;
+int current_max_distance;
 
 enum {
   WAIT_FOR_SERVO_TO_TURN,
@@ -257,11 +260,16 @@ int get_last_reading_for_angle(int angle) {
 }
 
 int get_forward_time_millis() {
-  return map(analogRead(FORWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
+  int max_time = map(analogRead(FORWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
+  int time = map(current_max_distance, 0, SENSOR_MAX_RANGE_CM, 0, max_time);
+  return time;
 }
 
 int get_backward_time_millis() {
-  return map(analogRead(BACKWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
+  // same logic because we don't have a front sensor...
+  int max_time = map(analogRead(FORWARD_POT), 0, 1024, 0, MAX_TIME_UNIT_MILLIS);
+  int time = map(current_max_distance, 0, SENSOR_MAX_RANGE_CM, 0, max_time);
+  return time;
 }
 
 /*
@@ -362,16 +370,19 @@ int quick_decision() {
     if(left_value < SAFE_DISTANCE) {
       return REVERSE;
     }
+    current_max_distance = left_value;
     return LEFT;
   } else if(right_value > forward_value && right_value > left_value) {
     if(right_value < SAFE_DISTANCE) {
       return REVERSE;
     }
+    current_max_distance = right_value;
     return RIGHT;
   } else {
     if(forward_value < SAFE_DISTANCE) {
       return REVERSE; 
     }
+    current_max_distance = forward_value;
     return FORWARD;
   }
 }
@@ -465,8 +476,6 @@ void init_direction_unit(int decision) {
     return; // switching state
   }
   
-  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, get_forward_time_millis());
-  go(FORWARD);
   switch(decision) {
     case LEFT:
       current_state = FORWARD_LEFT_UNIT;
@@ -487,12 +496,12 @@ void init_direction_unit(int decision) {
       break;
   }
   last_forward_state = current_state;
+  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, get_forward_time_millis());
+  go(FORWARD);
 }
 
 void init_direction_reverse_unit(int dir) {  
   full_stop();
-  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, get_backward_time_millis());
-  go(REVERSE);
   switch(dir) {
     case LEFT:
       current_state = REVERSE_LEFT_UNIT;
@@ -512,6 +521,8 @@ void init_direction_reverse_unit(int dir) {
       }
       break;
   }
+  start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, get_backward_time_millis());
+  go(REVERSE);
 }
 
 void check_button() {
