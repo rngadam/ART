@@ -71,7 +71,7 @@ const int ROBOT_TURN_RATE_PER_SECOND = 90;
 const int SAFE_DISTANCE = 50;
 const int CRITICAL_DISTANCE = 20;
 const int MAX_TIME_UNIT_MILLIS = 3000;
-const int MIN_TIME_UNIT_MILLIS = 300;
+const int MIN_TIME_UNIT_MILLIS = 500;
 enum states {
   // start state
   INITIAL = 'I',
