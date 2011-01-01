@@ -3,10 +3,10 @@
 #include <limits.h>
 
 enum LOG_LEVELS {
-   ERROR,
-   INFO,
-   DEBUG,
-   TRACE,
+  ERROR,
+  INFO,
+  DEBUG,
+  TRACE,
 };
 int LOG_LEVEL = DEBUG;
 
@@ -34,23 +34,23 @@ const int REVERSE_POT_PIN = A4;
 
 /*
 We're sweeping the servo either left or right
-DFR15 METAL GEAR SERVO
-Voltage: +4.8-7.2V
-Current: 180mA(4.8V)；220mA（6V）
-Speed(no load)：0.17 s/60 degree (4.8V);0.25 s/60 degree (6.0V)
-Torque：10Kg·cm(4.8V) 12KG·cm(6V) 15KG·cm(7.2V)
-Temperature:0-60 Celcius degree
-Size：40.2 x 20.2 x 43.2mm
-Weight：48g
-*/
+ DFR15 METAL GEAR SERVO
+ Voltage: +4.8-7.2V
+ Current: 180mA(4.8V)；220mA（6V）
+ Speed(no load)：0.17 s/60 degree (4.8V);0.25 s/60 degree (6.0V)
+ Torque：10Kg·cm(4.8V) 12KG·cm(6V) 15KG·cm(7.2V)
+ Temperature:0-60 Celcius degree
+ Size：40.2 x 20.2 x 43.2mm
+ Weight：48g
+ */
 const int SERVO_TURN_RATE_PER_SECOND = 100; // 100 = 60/(0.2*3) where 3 is caused by load?
 
 /* 
-HC-SR04 Ultrasonic sensor
-effectual angle: <15°
-ranging distance : 2cm – 500 cm
-resolution : 0.3 cm
-*/
+ HC-SR04 Ultrasonic sensor
+ effectual angle: <15°
+ ranging distance : 2cm – 500 cm
+ resolution : 0.3 cm
+ */
 const int SENSOR_LOOKING_FORWARD_ANGLE = 90; 
 // rotating counterclockwise...
 const int SENSOR_LOOKING_LEFT_ANGLE = 135; 
@@ -70,7 +70,7 @@ const int SENSOR_MINIMAL_WAIT_ECHO_MILLIS = (SENSOR_MAX_RANGE_CM*2*1000)/SPEED_O
 
 /*
 Robot related information
-*/
+ */
 const int ROBOT_TURN_RATE_PER_SECOND = 90;
 const int SAFE_DISTANCE = 75;
 const int CRITICAL_DISTANCE = 30;
@@ -116,14 +116,6 @@ enum ultrasonics {
   ULTRASONIC_DIRECTION_ARRAY_SIZE,
 };
 
-// Global variable
-// this contains readings from a sweep
-int sensor_distance_readings_cm[ULTRASONIC_DIRECTION_ARRAY_SIZE][NUMBER_READINGS];
-const int NO_READING = -1;
-char current_state = STOP;
-// contains target angle
-int turn_towards;
-int current_max_distance = SAFE_DISTANCE; // needs a value for backward
 
 enum {
   WAIT_FOR_SERVO_TO_TURN,
@@ -134,6 +126,24 @@ enum {
   WAIT_FOR_BUTTON_REREAD,
   WAIT_ARRAY_SIZE, // always last...
 };
+
+class TripleReadings {
+public:
+  int left;
+  int right;
+  int forward;
+  int dir;
+  int current_max_distance;
+};
+
+// Global variable
+// this contains readings from a sweep
+int sensor_distance_readings_cm[ULTRASONIC_DIRECTION_ARRAY_SIZE][NUMBER_READINGS];
+const int NO_READING = -1;
+char current_state = STOP;
+// contains target angle
+int turn_towards;
+int current_max_distance = SAFE_DISTANCE; // needs a value for backward
 
 int timed_operation_initiated_millis[WAIT_ARRAY_SIZE];
 int timed_operation_desired_wait_millis[WAIT_ARRAY_SIZE];
@@ -157,7 +167,7 @@ void setup() {
   pinMode(REVERSE_POT_PIN, INPUT);
   //buttons
   pinMode(PUSHBUTTON_PIN, INPUT);
-  
+
   full_stop();
   sensor_servo.attach(SENSOR_SERVO_PIN);
   for(int i=0; i<WAIT_ARRAY_SIZE; i++) {
@@ -170,7 +180,7 @@ void setup() {
 
 /*
 Makes sure that exclusive directions are prohibited
-*/
+ */
 void go(int dir) {
   switch(dir) {
   case FORWARD:
@@ -205,7 +215,7 @@ void full_stop() {
 
 /*
 record current time to compare to
-*/
+ */
 void start_timed_operation(int index, int duration) {
   timed_operation_initiated_millis[index] = millis();
   timed_operation_desired_wait_millis[index] = duration;
@@ -219,8 +229,8 @@ void start_timed_operation(int index, int duration) {
 
 /*
 Check whether the timer has expired
-if expired, returns true else returns false
-*/
+ if expired, returns true else returns false
+ */
 boolean timed_operation_expired(int index) {
   int current_time = millis();
   if((current_time - timed_operation_initiated_millis[index]) < timed_operation_desired_wait_millis[index]) {
@@ -233,11 +243,14 @@ int expected_wait_millis(int turn_rate, int initial_angle, int desired_angle) {
   int delta;
   if(initial_angle < 0 || desired_angle < 0) { 
     return 0;
-  } else if(initial_angle == desired_angle) {
+  } 
+  else if(initial_angle == desired_angle) {
     return 0;
-  } else if(initial_angle > desired_angle) {
+  } 
+  else if(initial_angle > desired_angle) {
     delta = initial_angle - desired_angle;
-  } else {
+  } 
+  else {
     delta = desired_angle - initial_angle;
   }
   return (float(delta)/float(turn_rate))*1000.0;
@@ -268,11 +281,11 @@ int read_sensor(int sensor, Ultrasonic& sensor_object) {
   if(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
     return NO_READING;
   }
-  
+
   if(!timed_operation_expired(WAIT_FOR_ECHO)) {
     return NO_READING;
   }
-    
+
   int return_value = update_sensor_value(sensor, sensor_object.Ranging(CM));
   start_timed_operation(WAIT_FOR_ECHO, SENSOR_MINIMAL_WAIT_ECHO_MILLIS);
   return return_value;
@@ -297,13 +310,13 @@ int get_backward_time_millis() {
 
 /*
 make sure that the servo is at target position before returning
-if you don't use this, you need to check yourself that the timer has expired...
-*/
+ if you don't use this, you need to check yourself that the timer has expired...
+ */
 void safe_update_servo_position(int desired_sensor_servo_angle) {  
-    update_servo_position(desired_sensor_servo_angle);
-    while(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
-      check_button();
-    }
+  update_servo_position(desired_sensor_servo_angle);
+  while(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
+    check_button();
+  }
 }
 
 void update_servo_position(int desired_sensor_servo_angle) {  
@@ -344,68 +357,66 @@ int find_best_direction_degrees(int sensor) {
   return NO_READING;
 }
 
-
-int get_longest_dir(int sensor) {
-  int left_value = get_last_reading_for_angle(sensor, SENSOR_LOOKING_LEFT_ANGLE);
-  int right_value = get_last_reading_for_angle(sensor, SENSOR_LOOKING_RIGHT_ANGLE);
-  int forward_value = get_last_reading_for_angle(sensor, SENSOR_LOOKING_FORWARD_ANGLE);
-
-  int dir;
-  if(left_value > forward_value && left_value > right_value) {
-    current_max_distance = left_value;
-    dir = LEFT;
-  } else if(right_value > forward_value && right_value > left_value) {
-    current_max_distance = right_value;
-    dir = RIGHT;
-  } else {
-    current_max_distance = forward_value;
-    dir = FORWARD;
+int fill_data(int sensor, TripleReadings& readings) {
+  readings.left = get_last_reading_for_angle(sensor, SENSOR_LOOKING_LEFT_ANGLE);
+  readings.right = get_last_reading_for_angle(sensor, SENSOR_LOOKING_RIGHT_ANGLE);
+  readings.forward = get_last_reading_for_angle(sensor, SENSOR_LOOKING_FORWARD_ANGLE);
+  if(readings.left > readings.forward && readings.left > readings.right) {
+    readings.current_max_distance = readings.left;
+    readings.dir = LEFT;
+  } 
+  else if(readings.right > readings.forward && readings.right > readings.left) {
+    readings.current_max_distance = readings.right;
+    readings.dir = RIGHT;
+  } 
+  else {
+    readings.current_max_distance = readings.forward;
+    readings.dir = FORWARD;
   }
-  return dir;
 }
 
 /*
 Find out where we get the best distance range and go towards that
-If all the distances in front are unsafe, return REVERSE
-*/
+ If all the distances in front are unsafe, return REVERSE
+ */
 int quick_decision() {
   // one of the value has been updated, check to see if we should go left or right 
   // or just keep going forward
-  int dir = get_longest_dir(ULTRASONIC_FORWARD);
-  if(current_max_distance < SAFE_DISTANCE) {
-    int dir = get_longest_dir(ULTRASONIC_REVERSE);
-    if(current_max_distance < SAFE_DISTANCE) {
+  TripleReadings readings;
+  fill_data(ULTRASONIC_FORWARD, readings);
+  if(readings.current_max_distance < SAFE_DISTANCE) {
+    fill_data(ULTRASONIC_REVERSE, readings);
+    if(readings.current_max_distance < SAFE_DISTANCE) {
       return NO_READING;
     }
-    switch(dir) {
-      case LEFT:
-        return REVERSE_RIGHT_UNIT;
-        break;
-      case RIGHT:
-         return REVERSE_LEFT_UNIT;
-         break;
-      case FORWARD:
-         return REVERSE_UNIT;
-         break;
-    }
-  }
-  switch(dir) {
+    switch(readings.dir) {
     case LEFT:
-      return FORWARD_LEFT_UNIT;
+      return REVERSE_RIGHT_UNIT;
       break;
     case RIGHT:
-       return FORWARD_RIGHT_UNIT;
-       break;
+      return REVERSE_LEFT_UNIT;
+      break;
     case FORWARD:
-       return FORWARD_UNIT;
-       break;
+      return REVERSE_UNIT;
+      break;
+    }
+  }
+  switch(readings.dir) {
+  case LEFT:
+    return FORWARD_LEFT_UNIT;
+    break;
+  case RIGHT:
+    return FORWARD_RIGHT_UNIT;
+    break;
+  case FORWARD:
+    return FORWARD_UNIT;
+    break;
   }
 }
 
-
 /*
 completes once the sensor has readings left, right and center
-*/
+ */
 boolean check_left;
 int quick_sweep_number_readings = 0; // use modulo 4 to get every three readings
 int sensor_array_read_next;
@@ -417,47 +428,47 @@ void init_quick_sweep() {
 }
 
 boolean quick_sweep() {
-    // we check if we have an updated value here
-    int read_value;
+  // we check if we have an updated value here
+  int read_value;
+  switch(sensor_array_read_next) {
+  case FORWARD_DIR:
+  case FORWARD_LEFT_DIR:
+  case FORWARD_RIGHT_DIR:
+    read_value = read_sensor(ULTRASONIC_FORWARD, sensor_forward);
+    break;
+  case REVERSE_LEFT_DIR:
+  case REVERSE_DIR:
+  case REVERSE_RIGHT_DIR:
+    read_value = read_sensor(ULTRASONIC_REVERSE, sensor_reverse);
+    break;
+  }
+  if(read_value != NO_READING) {
     switch(sensor_array_read_next) {
-      case FORWARD_DIR:
-      case FORWARD_LEFT_DIR:
-      case FORWARD_RIGHT_DIR:
-        read_value = read_sensor(ULTRASONIC_FORWARD, sensor_forward);
-        break;
-      case REVERSE_LEFT_DIR:
-      case REVERSE_DIR:
-      case REVERSE_RIGHT_DIR:
-        read_value = read_sensor(ULTRASONIC_REVERSE, sensor_reverse);
-        break;
+    case FORWARD_DIR:
+      sensor_array_read_next = REVERSE_DIR;
+      break;
+    case REVERSE_DIR:
+      sensor_array_read_next = FORWARD_LEFT_DIR;       
+      update_servo_position(SENSOR_LOOKING_LEFT_ANGLE);
+      break;
+    case FORWARD_LEFT_DIR:
+      sensor_array_read_next = REVERSE_LEFT_DIR;
+      break;
+    case REVERSE_LEFT_DIR:
+      sensor_array_read_next = FORWARD_RIGHT_DIR;         
+      update_servo_position(SENSOR_LOOKING_RIGHT_ANGLE);
+      break;
+    case FORWARD_RIGHT_DIR:
+      sensor_array_read_next = REVERSE_RIGHT_DIR;
+      break;
+    case REVERSE_RIGHT_DIR:
+      sensor_array_read_next = FORWARD_DIR;
+      update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+      return true; // completed sweep!
+      break;
     }
-    if(read_value != NO_READING) {
-      switch(sensor_array_read_next) {
-        case FORWARD_DIR:
-          sensor_array_read_next = REVERSE_DIR;
-          break;
-        case REVERSE_DIR:
-           sensor_array_read_next = FORWARD_LEFT_DIR;       
-           update_servo_position(SENSOR_LOOKING_LEFT_ANGLE);
-           break;
-        case FORWARD_LEFT_DIR:
-          sensor_array_read_next = REVERSE_LEFT_DIR;
-          break;
-        case REVERSE_LEFT_DIR:
-          sensor_array_read_next = FORWARD_RIGHT_DIR;         
-          update_servo_position(SENSOR_LOOKING_RIGHT_ANGLE);
-          break;
-        case FORWARD_RIGHT_DIR:
-          sensor_array_read_next = REVERSE_RIGHT_DIR;
-          break;
-        case REVERSE_RIGHT_DIR:
-          sensor_array_read_next = FORWARD_DIR;
-          update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
-          return true; // completed sweep!
-          break;
-      }
-    }
-    return false;
+  }
+  return false;
 }
 void init_stuck() {
   full_stop();
@@ -473,52 +484,52 @@ void init_direction_unit(int decision) {
   full_stop();
   update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);  
   switch(decision) {
-    case FORWARD_LEFT_UNIT:
-      go(LEFT);
-      break;
-    case FORWARD_RIGHT_UNIT:
-      go(RIGHT);
-      break;
-    case FORWARD_UNIT:
-      break;
-    case REVERSE_LEFT_UNIT:
-      go(RIGHT);
-      break;
-    case REVERSE_RIGHT_UNIT:
-      go(LEFT);
-      break;
-    case REVERSE_UNIT:
-      break;
-    default:
-      if(LOG_LEVEL >= ERROR) {
-        Serial.print("BAD STATE IN init_direction_unit:");
-        Serial.println(decision);
-      }
-      break;
+  case FORWARD_LEFT_UNIT:
+    go(LEFT);
+    break;
+  case FORWARD_RIGHT_UNIT:
+    go(RIGHT);
+    break;
+  case FORWARD_UNIT:
+    break;
+  case REVERSE_LEFT_UNIT:
+    go(RIGHT);
+    break;
+  case REVERSE_RIGHT_UNIT:
+    go(LEFT);
+    break;
+  case REVERSE_UNIT:
+    break;
+  default:
+    if(LOG_LEVEL >= ERROR) {
+      Serial.print("BAD STATE IN init_direction_unit:");
+      Serial.println(decision);
+    }
+    break;
   }
   previous_state = current_state;
   current_state = decision;
   int dir;
   int time_millis;
   switch(decision) {
-    case FORWARD_LEFT_UNIT:
-    case FORWARD_RIGHT_UNIT:
-    case FORWARD_UNIT:
-       time_millis = get_forward_time_millis();
-       dir = FORWARD;
-       break;
-    case REVERSE_LEFT_UNIT:
-    case REVERSE_RIGHT_UNIT:
-    case REVERSE_UNIT:
-       time_millis = get_backward_time_millis();
-       dir = REVERSE;
-       break;
-    default:
-      if(LOG_LEVEL >= ERROR) {
-        Serial.print("BAD STATE IN init_direction_unit:");
-        Serial.println(decision);
-      }
-      break;
+  case FORWARD_LEFT_UNIT:
+  case FORWARD_RIGHT_UNIT:
+  case FORWARD_UNIT:
+    time_millis = get_forward_time_millis();
+    dir = FORWARD;
+    break;
+  case REVERSE_LEFT_UNIT:
+  case REVERSE_RIGHT_UNIT:
+  case REVERSE_UNIT:
+    time_millis = get_backward_time_millis();
+    dir = REVERSE;
+    break;
+  default:
+    if(LOG_LEVEL >= ERROR) {
+      Serial.print("BAD STATE IN init_direction_unit:");
+      Serial.println(decision);
+    }
+    break;
   }
   int forward_time_millis = get_forward_time_millis();
   if(LOG_LEVEL>=INFO) {
@@ -543,7 +554,8 @@ void check_button() {
     }
     if(current_state == STOP) {
       current_state = INITIAL;
-    } else {
+    } 
+    else {
       full_stop();
       current_state = STOP;
     }
@@ -551,13 +563,24 @@ void check_button() {
   } 
 }
 
+void handle_unit(int sensor, Ultrasonic& sensor_object) {
+  if(timed_operation_expired(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT)) {
+    init_quick_sweep();
+  }
+  if(read_sensor(sensor, sensor_object) != NO_READING) {
+    if(potential_collision(sensor)) {
+      init_quick_sweep();
+    }
+  }
+}
+
 void loop(){
   int initial_state = current_state;
   int decision;
   check_button();
   switch(current_state) {
-  // initial; this initiates what type of sub-state-machine we want to use
-  // unit: move one unit, scan, decide, move one unit, scan, decide, move one unit...
+    // initial; this initiates what type of sub-state-machine we want to use
+    // unit: move one unit, scan, decide, move one unit, scan, decide, move one unit...
   case INITIAL:
     init_quick_sweep(); // change this to change sub-state-machine
     break;
@@ -571,25 +594,20 @@ void loop(){
     decision = quick_decision();
     if(decision != NO_READING) {
       init_direction_unit(decision);
-    } else {
+    } 
+    else {
       init_stuck();
     }
     break;
   case FORWARD_UNIT:
   case FORWARD_LEFT_UNIT:
   case FORWARD_RIGHT_UNIT:
+    handle_unit(ULTRASONIC_FORWARD, sensor_forward);
+    break;
   case REVERSE_UNIT:
   case REVERSE_LEFT_UNIT:
   case REVERSE_RIGHT_UNIT:
-    // all directions work the same: we wait!
-    if(timed_operation_expired(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT)) {
-      init_quick_sweep();
-    }
-    if(read_sensor(ULTRASONIC_FORWARD, sensor_forward) != NO_READING) {
-      if(potential_collision(ULTRASONIC_FORWARD)) {
-        init_quick_sweep();
-      }
-    }
+    handle_unit(ULTRASONIC_REVERSE, sensor_reverse);
     break;
   case STOP:
     // do nothing...
@@ -602,11 +620,11 @@ void loop(){
   case STUCK:
     init_quick_sweep();
     break;
-    
+
   default:
     if(LOG_LEVEL >= ERROR) { 
-        Serial.print("BAD STATE IN main loop:");
-        Serial.println(current_state);
+      Serial.print("BAD STATE IN main loop:");
+      Serial.println(current_state);
     }
     break;
   }
@@ -620,4 +638,5 @@ void loop(){
     }
   }
 }
+
 
