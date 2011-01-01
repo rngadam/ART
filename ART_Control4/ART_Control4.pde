@@ -406,10 +406,10 @@ int quick_decision() {
     
     switch(readings_reverse.dir) {
     case LEFT:
-      return REVERSE_RIGHT_UNIT;
+      return REVERSE_LEFT_UNIT;
       break;
     case RIGHT:
-      return REVERSE_LEFT_UNIT;
+      return REVERSE_RIGHT_UNIT;
       break;
     case FORWARD:
       return REVERSE_UNIT;
