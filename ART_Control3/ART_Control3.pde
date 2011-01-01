@@ -445,16 +445,22 @@ void init_direction_unit(int decision) {
   start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, FORWARD_TIME_UNIT_MILLIS);
   go(FORWARD);
   switch(decision) {
-    LEFT:
+    case LEFT:
       current_state = FORWARD_LEFT_UNIT;
       go(LEFT);
       break;
-    RIGHT:
+    case RIGHT:
       current_state = FORWARD_RIGHT_UNIT;
       go(RIGHT);
       break;
-    FORWARD:
+    case FORWARD:
       current_state = FORWARD_UNIT;
+      break;
+    default:
+      if(LOG_LEVEL >= ERROR) {
+        Serial.print("BAD STATE IN init_direction_unit:");
+        Serial.println(decision);
+      }
       break;
   }
 }
