@@ -376,15 +376,22 @@ int fill_data(int sensor, TripleReadings& readings) {
 }
 
 boolean all_safe(TripleReadings& readings) {
-  if(readings.left >= SAFE_DISTANCE && readings.left >= SAFE_DISTANCE && readings.left >= SAFE_DISTANCE) {
+  if(readings.left >= SAFE_DISTANCE && readings.right >= SAFE_DISTANCE && readings.forward >= SAFE_DISTANCE) {
     return true;
   }
   return false;
 }
+
 /*
 Find out where we get the best distance range and go towards that
  If all the distances in front are unsafe, return REVERSE
  */
+ 
+void init_quick_decision() {
+  full_stop();
+  current_state = QUICK_DECISION;
+}
+
 int quick_decision() {
   // one of the value has been updated, check to see if we should go left or right 
   // or just keep going forward
@@ -491,11 +498,6 @@ void init_stuck() {
   current_state = STUCK;
 }
 
-void init_quick_decision() {
-  full_stop();
-  current_state = QUICK_DECISION;
-}
-
 void init_direction_unit(int decision) {
   full_stop();
   update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);  
@@ -574,6 +576,7 @@ void check_button() {
     else {
       full_stop();
       current_state = STOP;
+      update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE); 
     }
     start_timed_operation(WAIT_FOR_BUTTON_REREAD, 1000);
   } 
