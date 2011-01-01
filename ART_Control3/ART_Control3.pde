@@ -61,7 +61,7 @@ Robot related information
 const int ROBOT_TURN_RATE_PER_SECOND = 90;
 const int SAFE_DISTANCE = 50;
 const int CRITICAL_DISTANCE = 20;
-const int FORWARD_TIME_UNIT_MILLIS = 1000;
+const int FORWARD_TIME_UNIT_MILLIS = 500;
 
 enum states {
   // start state
@@ -434,7 +434,7 @@ void init_quick_decision() {
   full_stop();
   current_state = QUICK_DECISION;
 }
-
+int last_forward_state = FORWARD_UNIT;
 void init_direction_unit(int decision) {
   full_stop();
   if(decision == REVERSE) {
@@ -463,6 +463,7 @@ void init_direction_unit(int decision) {
       }
       break;
   }
+  last_forward_state = current_state;
 }
 
 void init_direction_reverse_unit(int dir) {  
@@ -472,11 +473,11 @@ void init_direction_reverse_unit(int dir) {
   switch(dir) {
     case LEFT:
       current_state = REVERSE_LEFT_UNIT;
-      go(RIGHT); // going left reverse means wheels pointing right
+      go(LEFT); 
       break;
     case RIGHT:
       current_state = REVERSE_RIGHT_UNIT;
-      go(LEFT); // going right reverse means wheels pointing left
+      go(RIGHT); 
       break;
     case REVERSE:
       current_state = REVERSE_UNIT;
@@ -573,7 +574,18 @@ void loop(){
   case REVERSE_QUICK_DECISION:
     // no sensors to tell us if we can reverse
     // or what direction to prefer so we always do...
-    init_direction_reverse_unit(REVERSE);
+    switch(last_forward_state) { 
+      case FORWARD_LEFT_UNIT:
+        init_direction_reverse_unit(RIGHT);
+        break;
+      case FORWARD_RIGHT_UNIT:
+        init_direction_reverse_unit(LEFT);
+        break;
+      case FORWARD_UNIT:
+        init_direction_reverse_unit(REVERSE);
+        break;
+    }
+
     break;
   case FORWARD_UNIT:
   case FORWARD_LEFT_UNIT:
