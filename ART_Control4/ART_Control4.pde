@@ -55,6 +55,7 @@ const int SENSOR_LOOKING_FORWARD_ANGLE = 90;
 // rotating counterclockwise...
 const int SENSOR_LOOKING_LEFT_ANGLE = 135; 
 const int SENSOR_LOOKING_RIGHT_ANGLE = 45; 
+const int SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE = 0; 
 const int SENSOR_ARC_DEGREES = 15; // 180, 90, 15 all divisible by 15
 const int MAXIMUM_SENSOR_SERVO_ANGLE = 180;
 const int MINIMUM_SENSOR_SERVO_ANGLE = 0;
@@ -101,13 +102,25 @@ enum directions {
   REVERSE_LEFT_DIR = '4',
   REVERSE_DIR = '5',
   REVERSE_RIGHT_DIR = '6',
+  SIDE_LEFT_DIR = 'A',
+  SIDE_RIGHT_DIR = 'B',
 };
 
 enum commands {
   FORWARD,
-  REVERSE,
   LEFT,
-  RIGHT
+  RIGHT,
+  SIDE,
+  COMMANDS_ARRAY_SIZE,
+  REVERSE, // we don't want readings arrays with thiis value
+};
+
+
+int commands_to_angle[] = {
+  SENSOR_LOOKING_FORWARD_ANGLE,
+  SENSOR_LOOKING_LEFT_ANGLE, 
+  SENSOR_LOOKING_RIGHT_ANGLE,
+  SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE,
 };
 
 enum ultrasonics {
@@ -129,12 +142,11 @@ enum {
 
 class TripleReadings {
 public:
-  int left;
-  int right;
-  int forward;
+  int values[COMMANDS_ARRAY_SIZE];
   int dir;
   int current_max_distance;
 };
+
 
 // Global variable
 // this contains readings from a sweep
@@ -358,30 +370,39 @@ int find_best_direction_degrees(int sensor) {
 }
 
 int fill_data(int sensor, TripleReadings& readings) {
-  readings.left = get_last_reading_for_angle(sensor, SENSOR_LOOKING_LEFT_ANGLE);
-  readings.right = get_last_reading_for_angle(sensor, SENSOR_LOOKING_RIGHT_ANGLE);
-  readings.forward = get_last_reading_for_angle(sensor, SENSOR_LOOKING_FORWARD_ANGLE);
-  if(readings.left > readings.forward && readings.left > readings.right) {
-    readings.current_max_distance = readings.left;
-    readings.dir = LEFT;
-  } 
-  else if(readings.right > readings.forward && readings.right > readings.left) {
-    readings.current_max_distance = readings.right;
-    readings.dir = RIGHT;
-  } 
-  else {
-    readings.current_max_distance = readings.forward;
-    readings.dir = FORWARD;
+  readings.current_max_distance = 0;
+  for(int i; i<COMMANDS_ARRAY_SIZE; i++) {
+    readings.values[i] = get_last_reading_for_angle(sensor, commands_to_angle[i]);
+    if(readings.values[i] > readings.current_max_distance) {
+      readings.current_max_distance = readings.values[i];
+      readings.dir = i;
+    }    
   }
 }
 
 boolean all_safe(TripleReadings& readings) {
-  if(readings.left >= SAFE_DISTANCE && readings.right >= SAFE_DISTANCE && readings.forward >= SAFE_DISTANCE) {
-    return true;
+  for(int i; i<COMMANDS_ARRAY_SIZE; i++) {
+    if(readings.values[i] <  SAFE_DISTANCE) {
+      return false;
+    }
   }
-  return false;
+  return true;
 }
 
+boolean is_unsafe(TripleReadings& readings) {
+  return readings.current_max_distance < SAFE_DISTANCE;
+}
+
+boolean is_safe(TripleReadings& readings) {
+  return readings.current_max_distance >= SAFE_DISTANCE;
+}
+boolean is_critical(TripleReadings& readings) {
+  return readings.current_max_distance < CRITICAL_DISTANCE;
+}
+
+boolean is_smaller_max_distance(TripleReadings& a, TripleReadings& b) {
+ return a.current_max_distance < b.current_max_distance;
+}
 /*
 Find out where we get the best distance range and go towards that
  If all the distances in front are unsafe, return REVERSE
@@ -399,18 +420,16 @@ int quick_decision() {
   TripleReadings readings_reverse;
   fill_data(ULTRASONIC_REVERSE, readings_reverse);
   fill_data(ULTRASONIC_FORWARD, readings_forward);
-  if(readings_forward.current_max_distance < CRITICAL_DISTANCE || (readings_forward.current_max_distance < SAFE_DISTANCE && readings_forward.current_max_distance < readings_reverse.current_max_distance)) {
-    if(readings_reverse.current_max_distance < CRITICAL_DISTANCE) {
+  if(is_critical(readings_forward) || (is_unsafe(readings_forward) && is_smaller_max_distance(readings_forward, readings_reverse))) {
+    if(is_critical(readings_reverse)) {
       return NO_READING;
     }
-    if(all_safe(readings_reverse)) {
-      if(previous_state == FORWARD_LEFT_UNIT) {
-        return REVERSE_LEFT_UNIT;
-      } else if(previous_state == FORWARD_RIGHT_UNIT) {
-        return REVERSE_RIGHT_UNIT;
-      }
+    if(previous_state == FORWARD_LEFT_UNIT && readings_reverse.values[RIGHT] > SAFE_DISTANCE) {
+      return REVERSE_LEFT_UNIT;
+    } else if(previous_state == FORWARD_RIGHT_UNIT && readings_reverse.values[LEFT] > SAFE_DISTANCE) {
+      return REVERSE_RIGHT_UNIT;
     }
-    
+   
     switch(readings_reverse.dir) {
     case LEFT:
       return REVERSE_LEFT_UNIT;
@@ -485,6 +504,13 @@ boolean quick_sweep() {
       sensor_array_read_next = REVERSE_RIGHT_DIR;
       break;
     case REVERSE_RIGHT_DIR:
+      sensor_array_read_next = SIDE_RIGHT_DIR;
+      update_servo_position(SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE);
+      break;
+    case SIDE_RIGHT_DIR:
+      sensor_array_read_next = SIDE_LEFT_DIR;
+      break;
+    case SIDE_LEFT_DIR:
       sensor_array_read_next = FORWARD_DIR;
       update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
       return true; // completed sweep!
@@ -493,6 +519,7 @@ boolean quick_sweep() {
   }
   return false;
 }
+
 void init_stuck() {
   full_stop();
   current_state = STUCK;
