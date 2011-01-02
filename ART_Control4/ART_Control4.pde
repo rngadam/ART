@@ -73,7 +73,8 @@ const int SENSOR_MINIMAL_WAIT_ECHO_MILLIS = (SENSOR_MAX_RANGE_CM*2*1000)/SPEED_O
 Robot related information
  */
 const int ROBOT_TURN_RATE_PER_SECOND = 90;
-const int SAFE_DISTANCE = 116; // the distance at which we can safely complete a 90 degrees turn
+//const int SAFE_DISTANCE = 116; // the distance at which we can safely complete a 90 degrees turn
+const int SAFE_DISTANCE = 50; // distance between table and wall and minus size of robot (when robot is stuck...)
 const int MAX_TIME_UNIT_MILLIS = 3000;
 const int MIN_TIME_UNIT_MILLIS = 500;
 enum states {
@@ -375,7 +376,7 @@ int fill_data(int sensor, TripleReadings& readings) {
   readings.right_side = get_last_reading_for_angle(ULTRASONIC_FORWARD, SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE);
 }
 
-boolean is_safe(int distance) {
+boolean is_safe_turn(int distance) {
   return distance >= SAFE_DISTANCE;
 }
 
@@ -396,10 +397,6 @@ void log_bad_state(char* str, int value) {
     Serial.print(" value:");
     Serial.println(value);
   }
-}
-
-boolean is_high_speed_possible(int value) {
-  return value >= 3*SAFE_DISTANCE;
 }
 
 int quick_decision() {
@@ -424,39 +421,59 @@ int quick_decision() {
   */
   
   // FORWARD
-  if(readings_forward.values[FORWARD] >= 3*SAFE_DISTANCE) { // wide open space, lets go!
-    return FORWARD_UNIT;
-  } 
-  
-  if(is_safe(readings_forward.values[FORWARD])) { // we can do a turn if we want by going forward
-    if(is_safe(readings_forward.values[LEFT]) && readings_forward.left_side > readings_forward.right_side) {
+  if(is_safe_turn(readings_forward.values[FORWARD])) { // we can do a turn if we want by going forward
+    if(readings_forward.values[FORWARD] > readings_forward.values[LEFT] && readings_forward.values[FORWARD] > readings_forward.values[RIGHT]) {
+      return FORWARD_UNIT;
+    }
+    else if(is_safe_turn(readings_forward.values[LEFT]) && (readings_forward.left_side > readings_forward.right_side)) {
       // left side is most promising
       return FORWARD_LEFT_UNIT;  
     }
-    else if(is_safe(readings_forward.values[RIGHT]) && readings_forward.right_side > readings_forward.left_side) {
+    else if(is_safe_turn(readings_forward.values[RIGHT]) && (readings_forward.right_side > readings_forward.left_side)) {
       // right side is most promising
       return FORWARD_RIGHT_UNIT;  
+    }
+    else {
+      // not greater but still safe...
+      return FORWARD_UNIT;
     }
   }
   
   // REVERSE
   // forward isn't working out, let us see if reverse shows more promise so we can turn to be towards the most promising side...
-  if(is_safe(readings_reverse.values[REVERSE])) {
-    if(is_safe(readings_reverse.values[LEFT]) && readings_reverse.left_side > readings_reverse.right_side) {
+  // or keep turning to follow through on a previous turn
+  if(is_safe_turn(readings_reverse.values[REVERSE])) {
+    // favor to help in a previous turn
+    if(is_safe_turn(readings_reverse.values[LEFT]) && previous_state == FORWARD_LEFT_UNIT) {
+      return REVERSE_LEFT_UNIT;
+    }
+    if(is_safe_turn(readings_reverse.values[RIGHT]) && previous_state == FORWARD_RIGHT_UNIT) {
+      return REVERSE_RIGHT_UNIT;
+    }
+    // ... other, select side with best potential
+    if(is_safe_turn(readings_reverse.values[LEFT]) && (readings_reverse.left_side > readings_reverse.right_side)) {
       // left side is most promising
       return REVERSE_LEFT_UNIT;  
     }
-    else if(is_safe(readings_reverse.values[RIGHT]) && readings_reverse.right_side > readings_reverse.left_side) {
+    else if(is_safe_turn(readings_reverse.values[RIGHT]) && (readings_reverse.right_side > readings_reverse.left_side)) {
       // right side is most promising
       return REVERSE_RIGHT_UNIT;  
     }
   } 
+
+  // forward/reverse choice ...
+  if(is_safe_turn(readings_forward.values[FORWARD])) {
+    if(readings_forward.values[FORWARD] > readings_reverse.values[FORWARD]) {
+      return FORWARD_UNIT;
+    } else {
+      // otherwise, readings_reverse is safe and longest
+      return REVERSE_UNIT;
+    }
+  }
   
-  // hmmm, nothing promising here, lets back away if possible
-  // and go back we're we came from
-  if(is_safe(readings_reverse.values[REVERSE])) {
+  if(is_safe_turn(readings_reverse.values[FORWARD])) {
     return REVERSE_UNIT;
-  } 
+  }
   
   return NO_READING; // we're stuck, nothing safe!
 }
