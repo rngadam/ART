@@ -210,7 +210,10 @@ void go(int dir) {
   case RIGHT:
     digitalWrite(LEFT_PIN, LOW);   
     digitalWrite(RIGHT_PIN, HIGH);   
-    break;            
+    break;       
+  default:
+    log_bad_state("go", dir);
+    break;  
   }
 }
 
@@ -413,6 +416,15 @@ void init_quick_decision() {
   current_state = QUICK_DECISION;
 }
 
+void log_bad_state(char* str, int value) {
+  if(LOG_LEVEL >= ERROR) {
+    Serial.print("Bad state in: ");
+    Serial.print(str);
+    Serial.print(" value:");
+    Serial.println(value);
+  }
+}
+
 int quick_decision() {
   // one of the value has been updated, check to see if we should go left or right 
   // or just keep going forward
@@ -420,10 +432,31 @@ int quick_decision() {
   TripleReadings readings_reverse;
   fill_data(ULTRASONIC_REVERSE, readings_reverse);
   fill_data(ULTRASONIC_FORWARD, readings_forward);
+  
+  // if one of the sides is a log longer, follow that
+  if(readings_reverse.dir == SIDE) {
+    if(is_safe(readings_forward)) {
+      return FORWARD_LEFT_UNIT;
+    } else if(is_safe(readings_reverse)) {
+      return REVERSE_LEFT_UNIT;
+    }
+  }
+  
+  if(readings_forward.dir == SIDE) {
+    if(is_safe(readings_forward)) {
+      return FORWARD_RIGHT_UNIT;
+    } else if(is_safe(readings_reverse)) {
+      return REVERSE_RIGHT_UNIT;
+    }
+  }
+  
+  
+  // if forward readings are critical or really just smaller go reverse
   if(is_critical(readings_forward) || (is_unsafe(readings_forward) && is_smaller_max_distance(readings_forward, readings_reverse))) {
     if(is_critical(readings_reverse)) {
       return NO_READING;
     }
+    // if we were turning in one direction forward previously, mirror that effect here
     if(previous_state == FORWARD_LEFT_UNIT && readings_reverse.values[LEFT] > SAFE_DISTANCE) {
       return REVERSE_LEFT_UNIT;
     } else if(previous_state == FORWARD_RIGHT_UNIT && readings_reverse.values[RIGHT] > SAFE_DISTANCE) {
@@ -440,9 +473,16 @@ int quick_decision() {
     case FORWARD:
       return REVERSE_UNIT;
       break;
+    case SIDE:
+      return NO_READING;
+      break;
+    default:
+      log_bad_state("quick_decision (direction)", readings_reverse.dir);
+      break;
     }
   }
   
+  // simply go towards the longest distance...
   switch(readings_forward.dir) {
   case LEFT:
     return FORWARD_LEFT_UNIT;
@@ -453,7 +493,16 @@ int quick_decision() {
   case FORWARD:
     return FORWARD_UNIT;
     break;
+  case SIDE:
+    return NO_READING;
+    break;
+  default:
+    log_bad_state("quick_decision", readings_reverse.dir);
+    break;
   }
+  
+  // no supposed to be reachable...
+  return NO_READING;
 }
 
 /*
@@ -486,10 +535,8 @@ boolean quick_sweep() {
       read_value = read_sensor(ULTRASONIC_REVERSE, sensor_reverse);
       break;
     default:
-      if(LOG_LEVEL >= ERROR) {
-        Serial.print("BAD STATE IN quick_sweep:");
-        Serial.println(sensor_array_read_next);
-      }
+      log_bad_state("quick_sweep (reading value)", sensor_array_read_next);
+      break;
   }
   if(read_value != NO_READING) {
     switch(sensor_array_read_next) {
@@ -523,10 +570,8 @@ boolean quick_sweep() {
       return true; // completed sweep!
       break;
     default:
-      if(LOG_LEVEL >= ERROR) {
-        Serial.print("BAD STATE IN quick_sweep:");
-        Serial.println(sensor_array_read_next);
-      } 
+      log_bad_state("quick_sweep (figuring where to go next)", sensor_array_read_next);
+      break;
     }
   }
   return false;
@@ -547,8 +592,6 @@ void init_direction_unit(int decision) {
   case FORWARD_RIGHT_UNIT:
     go(RIGHT);
     break;
-  case FORWARD_UNIT:
-    break;
   case REVERSE_LEFT_UNIT:
     go(RIGHT);
     break;
@@ -556,12 +599,11 @@ void init_direction_unit(int decision) {
     go(LEFT);
     break;
   case REVERSE_UNIT:
+  case FORWARD_UNIT:
+    // do nothing, we will decide below what to do
     break;
   default:
-    if(LOG_LEVEL >= ERROR) {
-      Serial.print("BAD STATE IN init_direction_unit:");
-      Serial.println(decision);
-    }
+    log_bad_state("quick_sweep init_direction_unit (converting to wheel direction)", decision);
     break;
   }
   previous_state = current_state;
@@ -582,10 +624,7 @@ void init_direction_unit(int decision) {
     dir = REVERSE;
     break;
   default:
-    if(LOG_LEVEL >= ERROR) {
-      Serial.print("BAD STATE IN init_direction_unit:");
-      Serial.println(decision);
-    }
+    log_bad_state("init_direction_unit (converting to forward or backward motion)", decision);
     break;
   }
   int forward_time_millis = get_forward_time_millis();
@@ -680,10 +719,7 @@ void loop(){
     break;
 
   default:
-    if(LOG_LEVEL >= ERROR) { 
-      Serial.print("BAD STATE IN main loop:");
-      Serial.println(current_state);
-    }
+    log_bad_state("init_direction_unit (converting to forward or backward motion)", current_state);
     break;
   }
 
