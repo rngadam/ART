@@ -425,34 +425,7 @@ void log_bad_state(char* str, int value) {
   }
 }
 
-int quick_decision() {
-  // one of the value has been updated, check to see if we should go left or right 
-  // or just keep going forward
-  TripleReadings readings_forward;
-  TripleReadings readings_reverse;
-  fill_data(ULTRASONIC_REVERSE, readings_reverse);
-  fill_data(ULTRASONIC_FORWARD, readings_forward);
-  
-  // if one of the sides is a log longer, follow that
-  if(readings_reverse.dir == SIDE) {
-    if(is_safe(readings_forward)) {
-      return FORWARD_LEFT_UNIT;
-    } else if(is_safe(readings_reverse)) {
-      return REVERSE_LEFT_UNIT;
-    }
-  }
-  
-  if(readings_forward.dir == SIDE) {
-    if(is_safe(readings_forward)) {
-      return FORWARD_RIGHT_UNIT;
-    } else if(is_safe(readings_reverse)) {
-      return REVERSE_RIGHT_UNIT;
-    }
-  }
-  
-  
-  // if forward readings are critical or really just smaller go reverse
-  if(is_critical(readings_forward) || (is_unsafe(readings_forward) && is_smaller_max_distance(readings_forward, readings_reverse))) {
+int reverse_decision(TripleReadings& readings_reverse) {
     if(is_critical(readings_reverse)) {
       return NO_READING;
     }
@@ -480,6 +453,40 @@ int quick_decision() {
       log_bad_state("quick_decision (direction)", readings_reverse.dir);
       break;
     }
+}
+
+int quick_decision() {
+  // one of the value has been updated, check to see if we should go left or right 
+  // or just keep going forward
+  TripleReadings readings_forward;
+  TripleReadings readings_reverse;
+  fill_data(ULTRASONIC_REVERSE, readings_reverse);
+  fill_data(ULTRASONIC_FORWARD, readings_forward);
+
+  if(is_critical(readings_forward)) {
+    return reverse_decision(readings_reverse);
+  }
+  // if one of the sides is a log longer, follow that
+  if(readings_reverse.dir == SIDE) {
+    if(is_safe(readings_forward)) {
+      return FORWARD_LEFT_UNIT;
+    } else if(is_safe(readings_reverse)) {
+      return REVERSE_LEFT_UNIT;
+    }
+  }
+  
+  if(readings_forward.dir == SIDE) {
+    if(is_safe(readings_forward)) {
+      return FORWARD_RIGHT_UNIT;
+    } else if(is_safe(readings_reverse)) {
+      return REVERSE_RIGHT_UNIT;
+    }
+  }
+  
+  
+  // if forward readings are unsafe and really smaller than prefer reverse
+  if((is_unsafe(readings_forward) && is_smaller_max_distance(readings_forward, readings_reverse))) {
+    return reverse_decision(readings_reverse);
   }
   
   // simply go towards the longest distance...
@@ -501,7 +508,7 @@ int quick_decision() {
     break;
   }
   
-  // no supposed to be reachable...
+  // not supposed to be reachable...
   return NO_READING;
 }
 
