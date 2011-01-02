@@ -422,6 +422,8 @@ int quick_decision() {
   Notes:
     going on reverse is expected to be slower than going forward
   */
+  
+  // FORWARD
   if(readings_forward.values[FORWARD] >= 3*SAFE_DISTANCE) { // wide open space, lets go!
     return FORWARD_UNIT;
   } 
@@ -437,8 +439,9 @@ int quick_decision() {
     }
   }
   
+  // REVERSE
   // forward isn't working out, let us see if reverse shows more promise so we can turn to be towards the most promising side...
-  if(is_safe(readings_reverse.values[FORWARD])) {
+  if(is_safe(readings_reverse.values[REVERSE])) {
     if(is_safe(readings_reverse.values[LEFT]) && readings_reverse.left_side > readings_reverse.right_side) {
       // left side is most promising
       return REVERSE_LEFT_UNIT;  
@@ -451,7 +454,7 @@ int quick_decision() {
   
   // hmmm, nothing promising here, lets back away if possible
   // and go back we're we came from
-  if(is_safe(readings_reverse.values[FORWARD])) {
+  if(is_safe(readings_reverse.values[REVERSE])) {
     return REVERSE_UNIT;
   } 
   
