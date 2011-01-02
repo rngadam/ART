@@ -73,8 +73,7 @@ const int SENSOR_MINIMAL_WAIT_ECHO_MILLIS = (SENSOR_MAX_RANGE_CM*2*1000)/SPEED_O
 Robot related information
  */
 const int ROBOT_TURN_RATE_PER_SECOND = 90;
-const int SAFE_DISTANCE = 75;
-const int CRITICAL_DISTANCE = 30;
+const int SAFE_DISTANCE = 116; // the distance at which we can safely complete a 90 degrees turn
 const int MAX_TIME_UNIT_MILLIS = 3000;
 const int MIN_TIME_UNIT_MILLIS = 500;
 enum states {
@@ -143,8 +142,8 @@ enum {
 class TripleReadings {
 public:
   int values[COMMANDS_ARRAY_SIZE];
-  int dir;
-  int current_max_distance;
+  int left_side;
+  int right_side;
 };
 
 
@@ -353,10 +352,6 @@ boolean potential_collision(int sensor) {
   return sensor_distance_readings_cm[sensor][SENSOR_LOOKING_FORWARD_READING_INDEX] <= SAFE_DISTANCE;
 }
 
-boolean imminent_collision(int sensor) {
-  return sensor_distance_readings_cm[sensor][SENSOR_LOOKING_FORWARD_READING_INDEX] <= CRITICAL_DISTANCE;
-}
-
 int find_best_direction_degrees(int sensor) {
   int longest_value = -1;
   int longest_index = -1;
@@ -373,39 +368,17 @@ int find_best_direction_degrees(int sensor) {
 }
 
 int fill_data(int sensor, TripleReadings& readings) {
-  readings.current_max_distance = 0;
-  for(int i; i<COMMANDS_ARRAY_SIZE; i++) {
+  for(int i; i<SIDE; i++) {
     readings.values[i] = get_last_reading_for_angle(sensor, commands_to_angle[i]);
-    if(readings.values[i] > readings.current_max_distance) {
-      readings.current_max_distance = readings.values[i];
-      readings.dir = i;
-    }    
   }
+  readings.left_side = get_last_reading_for_angle(ULTRASONIC_REVERSE, SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE);
+  readings.right_side = get_last_reading_for_angle(ULTRASONIC_FORWARD, SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE);
 }
 
-boolean all_safe(TripleReadings& readings) {
-  for(int i; i<COMMANDS_ARRAY_SIZE; i++) {
-    if(readings.values[i] <  SAFE_DISTANCE) {
-      return false;
-    }
-  }
-  return true;
+boolean is_safe(int distance) {
+  return distance >= SAFE_DISTANCE;
 }
 
-boolean is_unsafe(TripleReadings& readings) {
-  return readings.current_max_distance < SAFE_DISTANCE;
-}
-
-boolean is_safe(TripleReadings& readings) {
-  return readings.current_max_distance >= SAFE_DISTANCE;
-}
-boolean is_critical(TripleReadings& readings) {
-  return readings.current_max_distance < CRITICAL_DISTANCE;
-}
-
-boolean is_smaller_max_distance(TripleReadings& a, TripleReadings& b) {
- return a.current_max_distance < b.current_max_distance;
-}
 /*
 Find out where we get the best distance range and go towards that
  If all the distances in front are unsafe, return REVERSE
@@ -425,91 +398,64 @@ void log_bad_state(char* str, int value) {
   }
 }
 
-int reverse_decision(TripleReadings& readings_reverse) {
-    if(is_critical(readings_reverse)) {
-      return NO_READING;
-    }
-    // if we were turning in one direction forward previously, mirror that effect here
-    if(previous_state == FORWARD_LEFT_UNIT && readings_reverse.values[LEFT] > SAFE_DISTANCE) {
-      return REVERSE_LEFT_UNIT;
-    } else if(previous_state == FORWARD_RIGHT_UNIT && readings_reverse.values[RIGHT] > SAFE_DISTANCE) {
-      return REVERSE_RIGHT_UNIT;
-    }
-   
-    switch(readings_reverse.dir) {
-    case LEFT:
-      return REVERSE_LEFT_UNIT;
-      break;
-    case RIGHT:
-      return REVERSE_RIGHT_UNIT;
-      break;
-    case FORWARD:
-      return REVERSE_UNIT;
-      break;
-    case SIDE:
-      return NO_READING;
-      break;
-    default:
-      log_bad_state("quick_decision (direction)", readings_reverse.dir);
-      break;
-    }
+boolean is_high_speed_possible(int value) {
+  return value >= 3*SAFE_DISTANCE;
 }
 
 int quick_decision() {
-  // one of the value has been updated, check to see if we should go left or right 
-  // or just keep going forward
   TripleReadings readings_forward;
   TripleReadings readings_reverse;
   fill_data(ULTRASONIC_REVERSE, readings_reverse);
   fill_data(ULTRASONIC_FORWARD, readings_forward);
 
-  if(is_critical(readings_forward)) {
-    return reverse_decision(readings_reverse);
-  }
-  // if one of the sides is a log longer, follow that
-  if(readings_reverse.dir == SIDE) {
-    if(is_safe(readings_forward)) {
-      return FORWARD_LEFT_UNIT;
-    } else if(is_safe(readings_reverse)) {
-      return REVERSE_LEFT_UNIT;
-    }
-  }
+  /*
+  We have six possible directions to go to. We favor some above others.  Every time we make a decision, we want to pick the most favorable one.
   
-  if(readings_forward.dir == SIDE) {
-    if(is_safe(readings_forward)) {
-      return FORWARD_RIGHT_UNIT;
-    } else if(is_safe(readings_reverse)) {
-      return REVERSE_RIGHT_UNIT;
-    }
-  }
+   This is the desired behavior for high speed from most desirable to least desirable:
+   
+   we want to keep moving forward for as long as possible (use wide open space if possible)
+   if we just have minimum front distance to do a turn, we should turn left or right depending on both which angle and which side looks the most promising
+   if we can't turn (no SAFE_DISTANCE in to use to effect a turn), we back away to look towards the distance that has the most potential
+   if we can't turn on reverse (also no safe distance), we just back away straight if there is a long enough range
+   if not, we don't move (no use...)
   
-  
-  // if forward readings are unsafe and really smaller than prefer reverse
-  if((is_unsafe(readings_forward) && is_smaller_max_distance(readings_forward, readings_reverse))) {
-    return reverse_decision(readings_reverse);
-  }
-  
-  // simply go towards the longest distance...
-  switch(readings_forward.dir) {
-  case LEFT:
-    return FORWARD_LEFT_UNIT;
-    break;
-  case RIGHT:
-    return FORWARD_RIGHT_UNIT;
-    break;
-  case FORWARD:
+  Notes:
+    going on reverse is expected to be slower than going forward
+  */
+  if(readings_forward.values[FORWARD] >= 3*SAFE_DISTANCE) { // wide open space, lets go!
     return FORWARD_UNIT;
-    break;
-  case SIDE:
-    return NO_READING;
-    break;
-  default:
-    log_bad_state("quick_decision", readings_reverse.dir);
-    break;
+  } 
+  
+  if(is_safe(readings_forward.values[FORWARD])) { // we can do a turn if we want by going forward
+    if(is_safe(readings_forward.values[LEFT]) && readings_forward.left_side > readings_forward.right_side) {
+      // left side is most promising
+      return FORWARD_LEFT_UNIT;  
+    }
+    else if(is_safe(readings_forward.values[RIGHT]) && readings_forward.right_side > readings_forward.left_side) {
+      // right side is most promising
+      return FORWARD_RIGHT_UNIT;  
+    }
   }
   
-  // not supposed to be reachable...
-  return NO_READING;
+  // forward isn't working out, let us see if reverse shows more promise so we can turn to be towards the most promising side...
+  if(is_safe(readings_reverse.values[FORWARD])) {
+    if(is_safe(readings_reverse.values[LEFT]) && readings_reverse.left_side > readings_reverse.right_side) {
+      // left side is most promising
+      return REVERSE_LEFT_UNIT;  
+    }
+    else if(is_safe(readings_reverse.values[RIGHT]) && readings_reverse.right_side > readings_reverse.left_side) {
+      // right side is most promising
+      return REVERSE_RIGHT_UNIT;  
+    }
+  } 
+  
+  // hmmm, nothing promising here, lets back away if possible
+  // and go back we're we came from
+  if(is_safe(readings_reverse.values[FORWARD])) {
+    return REVERSE_UNIT;
+  } 
+  
+  return NO_READING; // we're stuck, nothing safe!
 }
 
 /*
