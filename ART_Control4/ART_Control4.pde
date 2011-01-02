@@ -55,7 +55,7 @@ const int SENSOR_LOOKING_FORWARD_ANGLE = 90;
 // rotating counterclockwise...
 const int SENSOR_LOOKING_LEFT_ANGLE = 135; 
 const int SENSOR_LOOKING_RIGHT_ANGLE = 45; 
-const int SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE = 0; 
+const int SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE = 1; 
 const int SENSOR_ARC_DEGREES = 15; // 180, 90, 15 all divisible by 15
 const int MAXIMUM_SENSOR_SERVO_ANGLE = 180;
 const int MINIMUM_SENSOR_SERVO_ANGLE = 0;
@@ -424,9 +424,9 @@ int quick_decision() {
     if(is_critical(readings_reverse)) {
       return NO_READING;
     }
-    if(previous_state == FORWARD_LEFT_UNIT && readings_reverse.values[RIGHT] > SAFE_DISTANCE) {
+    if(previous_state == FORWARD_LEFT_UNIT && readings_reverse.values[LEFT] > SAFE_DISTANCE) {
       return REVERSE_LEFT_UNIT;
-    } else if(previous_state == FORWARD_RIGHT_UNIT && readings_reverse.values[LEFT] > SAFE_DISTANCE) {
+    } else if(previous_state == FORWARD_RIGHT_UNIT && readings_reverse.values[RIGHT] > SAFE_DISTANCE) {
       return REVERSE_RIGHT_UNIT;
     }
    
@@ -471,18 +471,25 @@ void init_quick_sweep() {
 
 boolean quick_sweep() {
   // we check if we have an updated value here
-  int read_value;
+  int read_value = NO_READING;
   switch(sensor_array_read_next) {
-  case FORWARD_DIR:
-  case FORWARD_LEFT_DIR:
-  case FORWARD_RIGHT_DIR:
-    read_value = read_sensor(ULTRASONIC_FORWARD, sensor_forward);
-    break;
-  case REVERSE_LEFT_DIR:
-  case REVERSE_DIR:
-  case REVERSE_RIGHT_DIR:
-    read_value = read_sensor(ULTRASONIC_REVERSE, sensor_reverse);
-    break;
+    case FORWARD_DIR:
+    case FORWARD_LEFT_DIR:
+    case FORWARD_RIGHT_DIR:
+    case SIDE_RIGHT_DIR:
+      read_value = read_sensor(ULTRASONIC_FORWARD, sensor_forward);
+      break;
+    case REVERSE_LEFT_DIR:
+    case REVERSE_DIR:
+    case REVERSE_RIGHT_DIR:
+    case SIDE_LEFT_DIR:
+      read_value = read_sensor(ULTRASONIC_REVERSE, sensor_reverse);
+      break;
+    default:
+      if(LOG_LEVEL >= ERROR) {
+        Serial.print("BAD STATE IN quick_sweep:");
+        Serial.println(sensor_array_read_next);
+      }
   }
   if(read_value != NO_READING) {
     switch(sensor_array_read_next) {
@@ -515,6 +522,11 @@ boolean quick_sweep() {
       update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
       return true; // completed sweep!
       break;
+    default:
+      if(LOG_LEVEL >= ERROR) {
+        Serial.print("BAD STATE IN quick_sweep:");
+        Serial.println(sensor_array_read_next);
+      } 
     }
   }
   return false;
