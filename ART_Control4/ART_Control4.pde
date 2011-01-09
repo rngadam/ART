@@ -12,6 +12,15 @@ enum LOG_LEVELS {
   DEBUG,
   TRACE,
 };
+
+enum telemetry_types {
+  ULTRASONIC_SENSORS,
+  STATE_CHANGE,
+  SENSOR_SERVO_POSITION_CHANGE,
+  CAR_GO_COMMAND,
+  CAR_SUSPEND_COMMAND
+};
+
 const int LOG_LEVEL = DEBUG;
 
 void log_bad_state(char* str, int value) {
@@ -23,6 +32,22 @@ void log_bad_state(char* str, int value) {
   }
 }
 
+void log_telemetry(int type, int source, int value) {
+  if(LOG_LEVEL >= TELEMETRY) {
+    log_telemetry_serial_print(millis(), type, source, value);
+  }  
+}
+
+void log_telemetry_serial_print(int time, int type, int source, int value) {
+  Serial.print("|");
+  Serial.print(time);
+  Serial.print(",");
+  Serial.print(type);
+  Serial.print(",");
+  Serial.print(source);
+  Serial.print(",");
+  Serial.println(value);  
+}
 /*****************************************************************************
  * ARDUINO PINS MAPPING
  *****************************************************************************/
@@ -129,11 +154,8 @@ void update_servo_position(int desired_sensor_servo_angle) {
     int wait_millis = expected_wait_millis(SERVO_TURN_RATE_PER_SECOND, current_sensor_servo_angle, desired_sensor_servo_angle);
     start_timed_operation(WAIT_FOR_SERVO_TO_TURN, wait_millis);
 
+    log_telemetry(SENSOR_SERVO_POSITION_CHANGE, current_sensor_servo_angle, desired_sensor_servo_angle);
     current_sensor_servo_angle = desired_sensor_servo_angle;
-    if(LOG_LEVEL >= DEBUG) {
-      Serial.print("SERVO:");
-      Serial.println(desired_sensor_servo_angle);
-    }
   }
 }
 
@@ -223,14 +245,6 @@ int update_sensor_value(int sensor, int measured_value) {
   if(abs(measured_value - sensor_distance_readings_cm[sensor]) > SENSOR_PRECISION_CM) {
     sensor_distance_readings_cm[sensor] = measured_value;
   }
-  if(LOG_LEVEL >= INFO) {
-    Serial.print("Sensor reading:");
-    Serial.print(sensor);
-    Serial.print(":");
-    Serial.print(current_sensor_servo_angle);
-    Serial.print(":");
-    Serial.println(sensor_distance_readings_cm[sensor]);
-  }
   return sensor_distance_readings_cm[sensor];
 }
 
@@ -243,7 +257,13 @@ int read_sensor(int sensor, Ultrasonic& sensor_object) {
     return NO_READING;
   }
 
+  if(current_sensor_servo_angle != sensor_position_to_servo_angle[sensor]) {
+    log_bad_state("read_sensor() servo current_position does not match sensor desired angle", current_sensor_servo_angle);
+    return NO_READING;
+  }
+  
   int return_value = update_sensor_value(sensor, sensor_object.Ranging(CM));
+  log_telemetry(ULTRASONIC_SENSORS, sensor, return_value); 
   start_timed_operation(WAIT_FOR_ECHO, SENSOR_MINIMAL_WAIT_ECHO_MILLIS);
   return return_value;
 }
@@ -265,11 +285,14 @@ enum commands {
   REVERSE,
   LEFT,
   RIGHT,
+  // COMBINED
   FORWARD_LEFT,
   FORWARD_RIGHT,
   REVERSE_LEFT,
   REVERSE_RIGHT,
 }; 
+
+int current_command = 0;
 
 /*
 Makes sure that exclusive directions are prohibited
@@ -299,14 +322,55 @@ void go(int dir) {
 }
 
 void suspend(int dir) {
-  digitalWrite(dir, LOW);
+  switch(dir) {
+  case FORWARD:
+    digitalWrite(FORWARD_PIN, LOW);   
+    break;
+  case REVERSE:
+    digitalWrite(REVERSE_PIN, LOW);   
+    break;  
+  case LEFT:
+    digitalWrite(LEFT_PIN, LOW);   
+    break;
+  case RIGHT:
+    digitalWrite(RIGHT_PIN, LOW);   
+    break;       
+  default:
+    log_bad_state("suspend", dir);
+    break;  
+  }
+}
+
+/*
+example:
+dir is REVERSE (value 1)
+so the dir_bitmask is 1 shifted by 1 to the left (0010)
+if current_command is 1010 (or similar), then skip
+otherwise (1000), execute and set current_command = 1000 | 0010 = 1010
+*/
+void go2(int dir) {
+  int dir_bitmask = 1 << dir;
+  if(!(current_command & dir_bitmask)) {
+    go(dir);
+    current_command = current_command | dir_bitmask;
+    log_telemetry(CAR_GO_COMMAND, current_command, dir);
+  }
+}
+
+void suspend2(int dir) {
+  int dir_bitmask = 1 << dir;
+  if(current_command & dir_bitmask) {
+    suspend(dir);
+    current_command = current_command ^ dir_bitmask;
+    log_telemetry(CAR_SUSPEND_COMMAND, current_command, dir);    
+  }
 }
 
 void full_stop() {
-  digitalWrite(FORWARD_PIN, LOW);
-  digitalWrite(REVERSE_PIN, LOW);
-  digitalWrite(LEFT_PIN, LOW);
-  digitalWrite(RIGHT_PIN, LOW);
+  suspend2(FORWARD);
+  suspend2(REVERSE);
+  suspend2(LEFT);
+  suspend2(RIGHT);
 }
 
 /*****************************************************************************
@@ -582,23 +646,23 @@ boolean handle_small_turn() {
   
   switch(small_turn_state) {
     case FORWARD_LEFT:
-      go(FORWARD);
-      go(LEFT);
+      go2(FORWARD);
+      go2(LEFT);
       small_turn_state = REVERSE_RIGHT;
       break;
     case REVERSE_RIGHT:
-      go(REVERSE);
-      go(RIGHT);
+      go2(REVERSE);
+      go2(RIGHT);
       small_turn_state = FORWARD_LEFT;
       break;
     case FORWARD_RIGHT:
-      go(FORWARD);
-      go(RIGHT);
+      go2(FORWARD);
+      go2(RIGHT);
       small_turn_state = REVERSE_LEFT;
       break;
     case REVERSE_LEFT:
-      go(REVERSE);
-      go(LEFT);
+      go2(REVERSE);
+      go2(LEFT);
       small_turn_state = FORWARD_RIGHT;
       break;      
     default:
@@ -618,16 +682,16 @@ void init_direction_unit(int decision) {
 
   switch(decision) {
   case FORWARD_LEFT_UNIT:
-    go(LEFT);
+    go2(LEFT);
     break;
   case FORWARD_RIGHT_UNIT:
-    go(RIGHT);
+    go2(RIGHT);
     break;
   case REVERSE_LEFT_UNIT:
-    go(RIGHT);
+    go2(RIGHT);
     break;
   case REVERSE_RIGHT_UNIT:
-    go(LEFT);
+    go2(LEFT);
     break;
   case REVERSE_UNIT:
   case FORWARD_UNIT:
@@ -659,7 +723,7 @@ void init_direction_unit(int decision) {
     break;
   }
   int forward_time_millis = get_forward_time_millis();
-  if(LOG_LEVEL>=INFO) {
+  if(LOG_LEVEL >= INFO) {
     Serial.print("Will move for (ms): ");
     Serial.println(forward_time_millis);
   }
@@ -774,10 +838,7 @@ void loop(){
 
   if(initial_state != current_state) {
     if(LOG_LEVEL >= INFO) {
-      Serial.print("INITIAL STATE:");
-      Serial.print((char)initial_state);
-      Serial.print(" FINAL STATE:");
-      Serial.println((char)current_state);
+      log_telemetry(STATE_CHANGE, initial_state, current_state);
     }
   }
 }
