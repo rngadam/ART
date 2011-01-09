@@ -45,6 +45,7 @@ enum telemetry_types {
 #define DEBUG
 #define TELEMETRY
 #define ERROR_SERIAL_LOGGING   
+#undef TRACE_SERIAL_LOGGING  
 
 #ifdef DEBUG
 #define DEBUG_PRINT(str)    \
@@ -64,9 +65,9 @@ enum telemetry_types {
 Serial.print("|"); \
 Serial.print(millis()); \
 Serial.print(","); \
-Serial.print(type); \
+Serial.print((int)type); \
 Serial.print(","); \
-Serial.print(source); \
+Serial.print((int)source); \
 Serial.print(","); \
 Serial.println((int)value);  
 #else
@@ -104,17 +105,15 @@ Serial.print("TRACE:"); \
 Serial.print(millis()); \
 Serial.print(":"); \
 Serial.print(message1); \
-Serial.print(value1); \
-Serial.print(context); \
+Serial.print((int)value1); \
 Serial.print(message2); \
-Serial.print(expected); \
-Serial.println(value2);   
+Serial.println((int)value2);   
 #define LOG_TRACE2(message1, value1) \
 Serial.print("TRACE:"); \
 Serial.print(millis()); \
 Serial.print(":"); \
 Serial.print(message1); \
-Serial.println(value1); 
+Serial.println((int)value1); 
 #else
 #define LOG_TRACE4(message1, value1, message2, value2)
 #define LOG_TRACE2(message1, value1)
@@ -190,27 +189,27 @@ We're sweeping the servo either left or right
  Size：40.2 x 20.2 x 43.2mm
  Weight：48g
  */
-constant_t SERVO_TURN_RATE_PER_SECOND = 100; // 100 = 60/(0.2*3) where 3 is caused by load?
+constant_t SERVO_TURN_RATE_MS_PER_DEGREE = 3; 
 Servo sensor_servo;   
 
 duration_ms_t expected_wait_millis(turn_rate_t turn_rate, angle_t initial_angle, angle_t desired_angle) {
   angle_t delta;
-  if(initial_angle < 0 || desired_angle < 0) { 
-    return 0;
-  } 
-  else if(initial_angle == desired_angle) {
-    return 0;
+  duration_ms_t return_value;
+  if(initial_angle == desired_angle) {
+    return_value = 0;
   } 
   else if(initial_angle > desired_angle) {
-    delta = initial_angle - desired_angle;
+    return_value = turn_rate * (initial_angle - desired_angle);
   } 
   else {
-    delta = desired_angle - initial_angle;
+    return_value = turn_rate * (desired_angle - initial_angle);
   }
-  return (float(delta)/float(turn_rate))*1000.0;
+  DEBUG_PRINT(return_value);
+  return return_value;
 }
 
 void update_servo_position(angle_t desired_sensor_servo_angle) {  
+  duration_ms_t wait_millis;
   switch(desired_sensor_servo_angle) {
   case 0:
   case 45:
@@ -224,9 +223,10 @@ void update_servo_position(angle_t desired_sensor_servo_angle) {
     break;
   }
   if(sensor_servo.read() != desired_sensor_servo_angle) {
-    sensor_servo.write(desired_sensor_servo_angle);              // tell servo to go to position in variable 'pos' 
-
-    duration_ms_t wait_millis = expected_wait_millis(SERVO_TURN_RATE_PER_SECOND, sensor_servo.read(), desired_sensor_servo_angle);
+    // calculate expected wait BEFORE going there...
+    wait_millis = expected_wait_millis(SERVO_TURN_RATE_MS_PER_DEGREE, sensor_servo.read(), desired_sensor_servo_angle);
+    sensor_servo.write(desired_sensor_servo_angle);              // tell servo to go to position in variable 'pos' \
+    DEBUG_PRINT(wait_millis);
     start_timed_operation(WAIT_FOR_SERVO_TO_TURN, wait_millis);
 
     LOG_TELEMETRY(SENSOR_SERVO_POSITION_CHANGE, sensor_servo.read(), desired_sensor_servo_angle);
@@ -252,7 +252,7 @@ large_constant_t SENSOR_MAX_RANGE_CM = 500;
 // spec range is 5m * 2 (return) = 10m
 // 10 / 341 = ~0.029
 large_constant_t SPEED_OF_SOUND_CM_PER_S = 34000;
-large_constant_t SENSOR_MINIMAL_WAIT_ECHO_MILLIS = (SENSOR_MAX_RANGE_CM*2*1000)/SPEED_OF_SOUND_CM_PER_S;
+constant_t SENSOR_MINIMAL_WAIT_ECHO_MILLIS = 50; //(SENSOR_MAX_RANGE_CM*2*1000)/SPEED_OF_SOUND_CM_PER_S;
 
 /*
 
@@ -374,7 +374,7 @@ bitmask8_t current_command = 0;
 /*
 Makes sure that exclusive directions are prohibited
  */
-void go(enum_t  dir) {
+void _go(enum_t  dir) {
   switch(dir) {
   case FORWARD:
     digitalWrite(REVERSE_PIN, LOW);
@@ -398,7 +398,7 @@ void go(enum_t  dir) {
   }
 }
 
-void suspend(enum_t dir) {
+void _suspend(enum_t dir) {
   switch(dir) {
   case FORWARD:
     digitalWrite(FORWARD_PIN, LOW);   
@@ -425,29 +425,29 @@ example:
  if current_command is 1010 (or similar), then skip
  otherwise (1000), execute and set current_command = 1000 | 0010 = 1010
  */
-void go2(enum_t dir) {
+void go(enum_t dir) {
   bitmask8_t dir_bitmask = 1 << dir;
   if(!(current_command & dir_bitmask)) {
-    go(dir);
+    _go(dir);
     current_command = current_command | dir_bitmask;
     LOG_TELEMETRY(CAR_GO_COMMAND, current_command, dir);
   }
 }
 
-void suspend2(enum_t dir) {
+void suspend(enum_t dir) {
   bitmask8_t dir_bitmask = 1 << dir;
   if(current_command & dir_bitmask) {
-    suspend(dir);
+    _suspend(dir);
     current_command = current_command ^ dir_bitmask;
     LOG_TELEMETRY(CAR_SUSPEND_COMMAND, current_command, dir);    
   }
 }
 
 void full_stop() {
-  suspend2(FORWARD);
-  suspend2(REVERSE);
-  suspend2(LEFT);
-  suspend2(RIGHT);
+  suspend(FORWARD);
+  suspend(REVERSE);
+  suspend(LEFT);
+  suspend(RIGHT);
 }
 
 /*****************************************************************************
@@ -668,16 +668,16 @@ boolean full_sweep() {
       sensor_array_read_next = SENSOR_LEFT;       
       break;
     case SENSOR_LEFT:
-      sensor_array_read_next = SENSOR_BACK_LEFT;
-      break;
-    case SENSOR_BACK_LEFT:
-      sensor_array_read_next = SENSOR_RIGHT;         
-      break;
-    case SENSOR_RIGHT:
       sensor_array_read_next = SENSOR_BACK_RIGHT;
       break;
     case SENSOR_BACK_RIGHT:
-      sensor_array_read_next = SENSOR_RIGHT_SIDE;
+      sensor_array_read_next = SENSOR_RIGHT;
+      break;
+    case SENSOR_RIGHT:
+      sensor_array_read_next = SENSOR_BACK_LEFT;
+      break;
+    case SENSOR_BACK_LEFT:
+      sensor_array_read_next = SENSOR_RIGHT_SIDE;         
       break;
     case SENSOR_RIGHT_SIDE:
       sensor_array_read_next = SENSOR_LEFT_SIDE;
@@ -691,6 +691,9 @@ boolean full_sweep() {
       break;
     }
     update_servo_position(sensor_position_to_servo_angle[sensor_array_read_next]);
+    if(sensor_array_read_next == SENSOR_FRONT) {
+      return true;
+    }
   }
   return false;
 }
@@ -734,23 +737,23 @@ boolean handle_small_turn() {
 
   switch(small_turn_state) {
   case FORWARD_LEFT:
-    go2(FORWARD);
-    go2(LEFT);
+    go(FORWARD);
+    go(LEFT);
     small_turn_state = REVERSE_RIGHT;
     break;
   case REVERSE_RIGHT:
-    go2(REVERSE);
-    go2(RIGHT);
+    go(REVERSE);
+    go(RIGHT);
     small_turn_state = FORWARD_LEFT;
     break;
   case FORWARD_RIGHT:
-    go2(FORWARD);
-    go2(RIGHT);
+    go(FORWARD);
+    go(RIGHT);
     small_turn_state = REVERSE_LEFT;
     break;
   case REVERSE_LEFT:
-    go2(REVERSE);
-    go2(LEFT);
+    go(REVERSE);
+    go(LEFT);
     small_turn_state = FORWARD_RIGHT;
     break;      
   default:
@@ -770,16 +773,16 @@ void init_direction_unit(enum_t decision) {
 
   switch(decision) {
   case FORWARD_LEFT_UNIT:
-    go2(LEFT);
+    go(LEFT);
     break;
   case FORWARD_RIGHT_UNIT:
-    go2(RIGHT);
+    go(RIGHT);
     break;
   case REVERSE_LEFT_UNIT:
-    go2(RIGHT);
+    go(RIGHT);
     break;
   case REVERSE_RIGHT_UNIT:
-    go2(LEFT);
+    go(LEFT);
     break;
   case REVERSE_UNIT:
   case FORWARD_UNIT:
@@ -888,12 +891,12 @@ void loop(){
   case FORWARD_UNIT:
   case FORWARD_LEFT_UNIT:
   case FORWARD_RIGHT_UNIT:
-    handle_unit(ULTRASONIC_FORWARD, sensor_forward);
+    handle_unit(SENSOR_FRONT, sensor_forward);
     break;
   case REVERSE_UNIT:
   case REVERSE_LEFT_UNIT:
   case REVERSE_RIGHT_UNIT:
-    handle_unit(ULTRASONIC_REVERSE, sensor_reverse);
+    handle_unit(SENSOR_BACK, sensor_reverse);
     break;
   case SMALL_TURN_CW:
   case SMALL_TURN_CCW:
