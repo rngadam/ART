@@ -2,16 +2,30 @@
 #include <Servo.h> 
 #include <limits.h>
 
+/*****************************************************************************
+ * LOGGING
+ *****************************************************************************/
 enum LOG_LEVELS {
   ERROR,
+  TELEMETRY,
   INFO,
   DEBUG,
   TRACE,
 };
-int LOG_LEVEL = DEBUG;
+const int LOG_LEVEL = DEBUG;
 
-// Arduino pins mapping
+void log_bad_state(char* str, int value) {
+  if(LOG_LEVEL >= ERROR) {
+    Serial.print("Bad state in: ");
+    Serial.print(str);
+    Serial.print(" value:");
+    Serial.println(value);
+  }
+}
 
+/*****************************************************************************
+ * ARDUINO PINS MAPPING
+ *****************************************************************************/
 // ultrasonic
 const int ULTRASONIC_REVERSE_TRIG = 2;
 const int ULTRASONIC_REVERSE_ECHO = 3;
@@ -25,13 +39,56 @@ const int RIGHT_PIN =  9;
 const int PUSHBUTTON_PIN = 10;
 // servo
 const int SENSOR_SERVO_PIN = 12;
-
 // analog adjustments
 const int FORWARD_POT_PIN = A5;
 const int REVERSE_POT_PIN = A4;
 // buttons
 
+/*****************************************************************************
+ * TIMING RELATED
+ *****************************************************************************/
+enum waits_types {
+  WAIT_FOR_SERVO_TO_TURN,
+  WAIT_FOR_ROBOT_TO_TURN,
+  WAIT_FOR_ECHO,
+  WAIT_FOR_ROBOT_TO_MOVE,
+  WAIT_FOR_ROBOT_TO_ADVANCE_UNIT,
+  WAIT_FOR_BUTTON_REREAD,
+  WAIT_ARRAY_SIZE, // always last...
+};
 
+int timed_operation_initiated_millis[WAIT_ARRAY_SIZE];
+int timed_operation_desired_wait_millis[WAIT_ARRAY_SIZE];
+
+/*
+record current time to compare to
+ */
+void start_timed_operation(int index, int duration) {
+  timed_operation_initiated_millis[index] = millis();
+  timed_operation_desired_wait_millis[index] = duration;
+  if(LOG_LEVEL >= TRACE) {
+    Serial.print("Timer added type ");
+    Serial.print(index);
+    Serial.print(" wait in millis:");
+    Serial.println(duration);
+  }
+}
+
+/*
+Check whether the timer has expired
+ if expired, returns true else returns false
+ */
+boolean timed_operation_expired(int index) {
+  int current_time = millis();
+  if((current_time - timed_operation_initiated_millis[index]) < timed_operation_desired_wait_millis[index]) {
+    return false;
+  }
+  return true;
+}
+
+/*****************************************************************************
+ * SENSOR SERVO
+ *****************************************************************************/
 /*
 We're sweeping the servo either left or right
  DFR15 METAL GEAR SERVO
@@ -44,23 +101,52 @@ We're sweeping the servo either left or right
  Weight：48g
  */
 const int SERVO_TURN_RATE_PER_SECOND = 100; // 100 = 60/(0.2*3) where 3 is caused by load?
+Servo sensor_servo;   
+// variable to store the servo current and desired angle 
+int current_sensor_servo_angle = 0;
 
+int expected_wait_millis(int turn_rate, int initial_angle, int desired_angle) {
+  int delta;
+  if(initial_angle < 0 || desired_angle < 0) { 
+    return 0;
+  } 
+  else if(initial_angle == desired_angle) {
+    return 0;
+  } 
+  else if(initial_angle > desired_angle) {
+    delta = initial_angle - desired_angle;
+  } 
+  else {
+    delta = desired_angle - initial_angle;
+  }
+  return (float(delta)/float(turn_rate))*1000.0;
+}
+
+void update_servo_position(int desired_sensor_servo_angle) {  
+  if(current_sensor_servo_angle != desired_sensor_servo_angle) {
+    sensor_servo.write(desired_sensor_servo_angle-1);              // tell servo to go to position in variable 'pos' 
+
+    int wait_millis = expected_wait_millis(SERVO_TURN_RATE_PER_SECOND, current_sensor_servo_angle, desired_sensor_servo_angle);
+    start_timed_operation(WAIT_FOR_SERVO_TO_TURN, wait_millis);
+
+    current_sensor_servo_angle = desired_sensor_servo_angle;
+    if(LOG_LEVEL >= DEBUG) {
+      Serial.print("SERVO:");
+      Serial.println(desired_sensor_servo_angle);
+    }
+  }
+}
+
+/*****************************************************************************
+ * SENSORS
+ *****************************************************************************/
 /* 
  HC-SR04 Ultrasonic sensor
  effectual angle: <15°
  ranging distance : 2cm – 500 cm
  resolution : 0.3 cm
  */
-const int SENSOR_LOOKING_FORWARD_ANGLE = 90; 
-// rotating counterclockwise...
-const int SENSOR_LOOKING_LEFT_ANGLE = 135; 
-const int SENSOR_LOOKING_RIGHT_ANGLE = 45; 
-const int SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE = 1; 
 const int SENSOR_ARC_DEGREES = 15; // 180, 90, 15 all divisible by 15
-const int MAXIMUM_SENSOR_SERVO_ANGLE = 180;
-const int MINIMUM_SENSOR_SERVO_ANGLE = 0;
-const int NUMBER_READINGS = MAXIMUM_SENSOR_SERVO_ANGLE/SENSOR_ARC_DEGREES; // 180/15 = 12 reading values in front
-const int SENSOR_LOOKING_FORWARD_READING_INDEX = SENSOR_LOOKING_FORWARD_ANGLE/SENSOR_ARC_DEGREES; // 90/15 = 6
 const int SENSOR_PRECISION_CM = 1;
 const int SENSOR_MAX_RANGE_CM = 500;
 // speed of sound at sea level = 340.29 m / s
@@ -70,57 +156,39 @@ const int SPEED_OF_SOUND_CM_PER_S = 34000;
 const int SENSOR_MINIMAL_WAIT_ECHO_MILLIS = (SENSOR_MAX_RANGE_CM*2*1000)/SPEED_OF_SOUND_CM_PER_S;
 
 /*
-Robot related information
+
+SENSOR_LEFT       SENSOR_FRONT       SENSOR_RIGHT
+                  -----------
+                  |   ^     | 
+                  |         |
+SENSOR_LEFT_SIDE  |         |   SENSOR_RIGHT_SIDE 
+                  |         |
+                  |         |
+                  |         |
+                  -----------
+SENSOR_BACK_LEFT  SENSOR_BACK   SENSOR_BACK_RIGHT
  */
-const int ROBOT_TURN_RATE_PER_SECOND = 90;
-//const int SAFE_DISTANCE = 116; // the distance at which we can safely complete a 90 degrees turn
-const int SAFE_DISTANCE = 50; // distance between table and wall and minus size of robot (when robot is stuck...)
-const int MAX_TIME_UNIT_MILLIS = 3000;
-const int MIN_TIME_UNIT_MILLIS = 500;
-enum states {
-  // start state
-  INITIAL = 'I',
-  QUICK_SWEEP = 'Q',
-  // units advancement
-  FORWARD_LEFT_UNIT = '1',
-  FORWARD_UNIT = '2',
-  FORWARD_RIGHT_UNIT = '3',
-  REVERSE_LEFT_UNIT = '4',
-  REVERSE_UNIT = '5',
-  REVERSE_RIGHT_UNIT = '6',
-  // decision making
-  QUICK_DECISION = '?',
-  // end state
-  STUCK = 'K',
-  STOP = '.'
+enum sensor_position {
+  SENSOR_LEFT,
+  SENSOR_FRONT, 
+  SENSOR_RIGHT,
+  SENSOR_LEFT_SIDE,
+  SENSOR_RIGHT_SIDE,
+  SENSOR_BACK_LEFT,
+  SENSOR_BACK,
+  SENSOR_BACK_RIGHT,
+  NUMBER_READINGS,
 };
 
-enum directions {
-  FORWARD_LEFT_DIR = '1',
-  FORWARD_DIR = '2',
-  FORWARD_RIGHT_DIR = '3',
-  REVERSE_LEFT_DIR = '4',
-  REVERSE_DIR = '5',
-  REVERSE_RIGHT_DIR = '6',
-  SIDE_LEFT_DIR = 'A',
-  SIDE_RIGHT_DIR = 'B',
-};
-
-enum commands {
-  FORWARD,
-  LEFT,
-  RIGHT,
-  SIDE,
-  COMMANDS_ARRAY_SIZE,
-  REVERSE, // we don't want readings arrays with thiis value
-};
-
-
-int commands_to_angle[] = {
-  SENSOR_LOOKING_FORWARD_ANGLE,
-  SENSOR_LOOKING_LEFT_ANGLE, 
-  SENSOR_LOOKING_RIGHT_ANGLE,
-  SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE,
+const int sensor_position_to_servo_angle[] = {
+  135,
+  90,
+  45,
+  0,
+  0,
+  45,
+  90,
+  135,
 };
 
 enum ultrasonics {
@@ -129,66 +197,79 @@ enum ultrasonics {
   ULTRASONIC_DIRECTION_ARRAY_SIZE,
 };
 
-
-enum {
-  WAIT_FOR_SERVO_TO_TURN,
-  WAIT_FOR_ROBOT_TO_TURN,
-  WAIT_FOR_ECHO,
-  WAIT_FOR_ROBOT_TO_MOVE,
-  WAIT_FOR_ROBOT_TO_ADVANCE_UNIT,
-  WAIT_FOR_BUTTON_REREAD,
-  WAIT_ARRAY_SIZE, // always last...
-};
-
-class TripleReadings {
-public:
-  int values[COMMANDS_ARRAY_SIZE];
-  int left_side;
-  int right_side;
-};
-
-
-// Global variable
-// this contains readings from a sweep
-int sensor_distance_readings_cm[ULTRASONIC_DIRECTION_ARRAY_SIZE][NUMBER_READINGS];
+int sensor_array_read_next;
+int sensor_distance_readings_cm[NUMBER_READINGS];
 const int NO_READING = -1;
-char current_state = STOP;
-// contains target angle
-int turn_towards;
-int current_max_distance = SAFE_DISTANCE; // needs a value for backward
-int previous_state = FORWARD_UNIT;
-int timed_operation_initiated_millis[WAIT_ARRAY_SIZE];
-int timed_operation_desired_wait_millis[WAIT_ARRAY_SIZE];
 
-// variables to store the servo current and desired angle 
-int current_sensor_servo_angle = 0;
-
-// Two useful objects...
-Servo sensor_servo;  // create servo object to control a servo 
 Ultrasonic sensor_forward = Ultrasonic(ULTRASONIC_FORWARD_TRIG, ULTRASONIC_FORWARD_ECHO);
 Ultrasonic sensor_reverse = Ultrasonic(ULTRASONIC_REVERSE_TRIG, ULTRASONIC_REVERSE_ECHO);
 
-void setup() { 
-  // these map to the contact switches on the RF
-  pinMode(FORWARD_PIN, OUTPUT);     
-  pinMode(REVERSE_PIN, OUTPUT);    
-  pinMode(LEFT_PIN, OUTPUT);  
-  pinMode(RIGHT_PIN, OUTPUT);  
-  // input potentiometer
-  pinMode(FORWARD_POT_PIN, INPUT);
-  pinMode(REVERSE_POT_PIN, INPUT);
-  //buttons
-  pinMode(PUSHBUTTON_PIN, INPUT);
-
-  full_stop();
-  sensor_servo.attach(SENSOR_SERVO_PIN);
-  for(int i=0; i<WAIT_ARRAY_SIZE; i++) {
-    timed_operation_initiated_millis[i] = 0;  
-    timed_operation_desired_wait_millis[i] = 0;
+int current_max_sensor() {
+  int max_sensor = SENSOR_LEFT;
+  for(int i=1;i<NUMBER_READINGS; i++) {
+    if(sensor_distance_readings_cm[i] >= sensor_distance_readings_cm[max_sensor]) {
+      max_sensor = i;
+    }
   }
-  safe_update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);   
-  Serial.begin(9600);
+  return max_sensor;
 }
+
+int current_max_distance_cm() {
+  return sensor_distance_readings_cm[current_max_sensor()];
+}
+
+int update_sensor_value(int sensor, int measured_value) {
+  // only update if the value is different beyond precision of sensor
+  if(abs(measured_value - sensor_distance_readings_cm[sensor]) > SENSOR_PRECISION_CM) {
+    sensor_distance_readings_cm[sensor] = measured_value;
+  }
+  if(LOG_LEVEL >= INFO) {
+    Serial.print("Sensor reading:");
+    Serial.print(sensor);
+    Serial.print(":");
+    Serial.print(current_sensor_servo_angle);
+    Serial.print(":");
+    Serial.println(sensor_distance_readings_cm[sensor]);
+  }
+  return sensor_distance_readings_cm[sensor];
+}
+
+int read_sensor(int sensor, Ultrasonic& sensor_object) {
+  if(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
+    return NO_READING;
+  }
+
+  if(!timed_operation_expired(WAIT_FOR_ECHO)) {
+    return NO_READING;
+  }
+
+  int return_value = update_sensor_value(sensor, sensor_object.Ranging(CM));
+  start_timed_operation(WAIT_FOR_ECHO, SENSOR_MINIMAL_WAIT_ECHO_MILLIS);
+  return return_value;
+}
+
+/*****************************************************************************
+ * RC CAR RELATED
+ *****************************************************************************/
+const int ROBOT_TURN_RATE_PER_SECOND = 90;
+//const int SAFE_DISTANCE_LARGE_TURN = 116; // the distance at which we can safely complete a 90 degrees turn
+const int SAFE_DISTANCE_LARGE_TURN = 50; // distance between table and wall and minus size of robot (when robot is stuck...)
+const int SAFE_DISTANCE_SMALL_TURN = 25; // one car length...
+const int MAX_TIME_UNIT_MILLIS = 3000;
+const int MIN_TIME_UNIT_MILLIS = 500;
+const int CAR_LENGTH = 25;
+const int CAR_WIDTH = 15;
+
+enum commands {
+  FORWARD,
+  REVERSE,
+  LEFT,
+  RIGHT,
+  FORWARD_LEFT,
+  FORWARD_RIGHT,
+  REVERSE_LEFT,
+  REVERSE_RIGHT,
+}; 
 
 /*
 Makes sure that exclusive directions are prohibited
@@ -228,208 +309,116 @@ void full_stop() {
   digitalWrite(RIGHT_PIN, LOW);
 }
 
-/*
-record current time to compare to
- */
-void start_timed_operation(int index, int duration) {
-  timed_operation_initiated_millis[index] = millis();
-  timed_operation_desired_wait_millis[index] = duration;
-  if(LOG_LEVEL >= TRACE) {
-    Serial.print("Timer added type ");
-    Serial.print(index);
-    Serial.print(" wait in millis:");
-    Serial.println(duration);
+/*****************************************************************************
+ * INTERNAL STATES
+ *****************************************************************************/
+enum states {
+  // start state
+  INITIAL = 'I',
+  FULL_SWEEP = 'Q',
+  // units advancement
+  FORWARD_LEFT_UNIT = '1',
+  FORWARD_UNIT = '2',
+  FORWARD_RIGHT_UNIT = '3',
+  REVERSE_LEFT_UNIT = '4',
+  REVERSE_UNIT = '5',
+  REVERSE_RIGHT_UNIT = '6',
+  // decision making
+  STANDSTILL_DECISION = '?',
+  // end state
+  STUCK = 'K',
+  STOP = '.',
+  SMALL_TURN_CCW = '<',
+  SMALL_TURN_CW = '>',
+};
+
+char current_state = STOP;
+int previous_state = FORWARD_UNIT;
+
+/*****************************************************************************
+ * SETUP
+ *****************************************************************************/
+void setup() { 
+  // these map to the contact switches on the RF
+  pinMode(FORWARD_PIN, OUTPUT);     
+  pinMode(REVERSE_PIN, OUTPUT);    
+  pinMode(LEFT_PIN, OUTPUT);  
+  pinMode(RIGHT_PIN, OUTPUT);  
+  // input potentiometer
+  pinMode(FORWARD_POT_PIN, INPUT);
+  pinMode(REVERSE_POT_PIN, INPUT);
+  //buttons
+  pinMode(PUSHBUTTON_PIN, INPUT);
+
+  full_stop();
+  sensor_servo.attach(SENSOR_SERVO_PIN);
+  for(int i=0; i<WAIT_ARRAY_SIZE; i++) {
+    timed_operation_initiated_millis[i] = 0;  
+    timed_operation_desired_wait_millis[i] = 0;
   }
+  update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]);   
+  Serial.begin(9600);
 }
 
-/*
-Check whether the timer has expired
- if expired, returns true else returns false
- */
-boolean timed_operation_expired(int index) {
-  int current_time = millis();
-  if((current_time - timed_operation_initiated_millis[index]) < timed_operation_desired_wait_millis[index]) {
-    return false;
-  }
-  return true;
-}
-
-int expected_wait_millis(int turn_rate, int initial_angle, int desired_angle) {
-  int delta;
-  if(initial_angle < 0 || desired_angle < 0) { 
-    return 0;
-  } 
-  else if(initial_angle == desired_angle) {
-    return 0;
-  } 
-  else if(initial_angle > desired_angle) {
-    delta = initial_angle - desired_angle;
-  } 
-  else {
-    delta = desired_angle - initial_angle;
-  }
-  return (float(delta)/float(turn_rate))*1000.0;
-}
-
-int convert_reading_index(int angle) {
-  return angle/SENSOR_ARC_DEGREES;
-}
-
-int update_sensor_value(int sensor, int measured_value) {
-  int index = convert_reading_index(current_sensor_servo_angle);
-  // only update if the value is different beyond precision of sensor
-  if(abs(measured_value - sensor_distance_readings_cm[sensor][index]) > SENSOR_PRECISION_CM) {
-    sensor_distance_readings_cm[sensor][index] = measured_value;
-  }
-  if(LOG_LEVEL >= INFO) {
-    Serial.print("Sensor reading:");
-    Serial.print(sensor);
-    Serial.print(":");
-    Serial.print(current_sensor_servo_angle);
-    Serial.print(":");
-    Serial.println(sensor_distance_readings_cm[sensor][index]);
-  }
-  return sensor_distance_readings_cm[sensor][index];
-}
-
-int read_sensor(int sensor, Ultrasonic& sensor_object) {
-  if(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
-    return NO_READING;
-  }
-
-  if(!timed_operation_expired(WAIT_FOR_ECHO)) {
-    return NO_READING;
-  }
-
-  int return_value = update_sensor_value(sensor, sensor_object.Ranging(CM));
-  start_timed_operation(WAIT_FOR_ECHO, SENSOR_MINIMAL_WAIT_ECHO_MILLIS);
-  return return_value;
-}
-
-int get_last_reading_for_angle(int sensor, int angle) {
-  return sensor_distance_readings_cm[sensor][convert_reading_index(angle)];
-}
-
+/*****************************************************************************
+ * DECISION HELPERS
+ *****************************************************************************/
 int get_forward_time_millis() {
   int max_time = map(analogRead(FORWARD_POT_PIN), 0, 1024, MIN_TIME_UNIT_MILLIS, MAX_TIME_UNIT_MILLIS);
-  int time = map(current_max_distance, 0, SENSOR_MAX_RANGE_CM, MIN_TIME_UNIT_MILLIS, max_time);
+  int time = map(current_max_distance_cm(), 0, SENSOR_MAX_RANGE_CM, MIN_TIME_UNIT_MILLIS, max_time);
   return time;
 }
 
 int get_backward_time_millis() {
   // same logic because we don't have a front sensor...
   int max_time = map(analogRead(REVERSE_POT_PIN), 0, 1024, MIN_TIME_UNIT_MILLIS, MAX_TIME_UNIT_MILLIS);
-  int time = map(current_max_distance, 0, SENSOR_MAX_RANGE_CM, MIN_TIME_UNIT_MILLIS, max_time);
+  int time = map(current_max_distance_cm(), 0, SENSOR_MAX_RANGE_CM, MIN_TIME_UNIT_MILLIS, max_time);
   return time;
 }
 
-/*
-make sure that the servo is at target position before returning
- if you don't use this, you need to check yourself that the timer has expired...
- */
-void safe_update_servo_position(int desired_sensor_servo_angle) {  
-  update_servo_position(desired_sensor_servo_angle);
-  while(!timed_operation_expired(WAIT_FOR_SERVO_TO_TURN)) {
-    check_button();
-  }
+boolean is_safe_large_turn(int sensor) {
+  return sensor_distance_readings_cm[sensor] >= SAFE_DISTANCE_LARGE_TURN;
 }
 
-void update_servo_position(int desired_sensor_servo_angle) {  
-  if(current_sensor_servo_angle != desired_sensor_servo_angle) {
-    sensor_servo.write(desired_sensor_servo_angle-1);              // tell servo to go to position in variable 'pos' 
-
-    int wait_millis = expected_wait_millis(SERVO_TURN_RATE_PER_SECOND, current_sensor_servo_angle, desired_sensor_servo_angle);
-    start_timed_operation(WAIT_FOR_SERVO_TO_TURN, wait_millis);
-
-    current_sensor_servo_angle = desired_sensor_servo_angle;
-    if(LOG_LEVEL >= DEBUG) {
-      Serial.print("SERVO:");
-      Serial.println(desired_sensor_servo_angle);
-    }
-  }
+boolean is_safe_small_turn(int sensor) {
+  return sensor_distance_readings_cm[sensor] >= SAFE_DISTANCE_SMALL_TURN;
 }
 
-boolean potential_collision(int sensor) {
-  return sensor_distance_readings_cm[sensor][SENSOR_LOOKING_FORWARD_READING_INDEX] <= SAFE_DISTANCE;
+boolean is_greater(int sensor_a, int sensor_b) {
+  return sensor_distance_readings_cm[sensor_a] > sensor_distance_readings_cm[sensor_b];
 }
 
-int find_best_direction_degrees(int sensor) {
-  int longest_value = -1;
-  int longest_index = -1;
-  for(int i=0; i<NUMBER_READINGS; i++) {
-    if(sensor_distance_readings_cm[sensor][i] > longest_value && sensor_distance_readings_cm[sensor][i] >= SAFE_DISTANCE) {
-      longest_value = sensor_distance_readings_cm[sensor][i];
-      longest_index = i;
-    }
-  }
-  if(longest_index != -1) {
-    return longest_index * SENSOR_ARC_DEGREES;
-  }
-  return NO_READING;
+boolean approximate_equal(int current, int target) {
+  return current > (target - CAR_LENGTH/2) && current < (target + CAR_LENGTH/2);
 }
 
-int fill_data(int sensor, TripleReadings& readings) {
-  for(int i; i<SIDE; i++) {
-    readings.values[i] = get_last_reading_for_angle(sensor, commands_to_angle[i]);
-  }
-  readings.left_side = get_last_reading_for_angle(ULTRASONIC_REVERSE, SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE);
-  readings.right_side = get_last_reading_for_angle(ULTRASONIC_FORWARD, SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE);
-}
-
-boolean is_safe_turn(int distance) {
-  return distance >= SAFE_DISTANCE;
-}
-
+/*****************************************************************************
+ * STATE INITS AND HANDLERS
+ *****************************************************************************/
 /*
 Find out where we get the best distance range and go towards that
  If all the distances in front are unsafe, return REVERSE
  */
  
-void init_quick_decision() {
+ /*****************************************************************************
+ * STANDSTILL DECISION
+ *****************************************************************************/
+void init_standstill_decision() {
   full_stop();
-  current_state = QUICK_DECISION;
+  current_state = STANDSTILL_DECISION;
 }
 
-void log_bad_state(char* str, int value) {
-  if(LOG_LEVEL >= ERROR) {
-    Serial.print("Bad state in: ");
-    Serial.print(str);
-    Serial.print(" value:");
-    Serial.println(value);
-  }
-}
-
-int quick_decision() {
-  TripleReadings readings_forward;
-  TripleReadings readings_reverse;
-  fill_data(ULTRASONIC_REVERSE, readings_reverse);
-  fill_data(ULTRASONIC_FORWARD, readings_forward);
-
-  /*
-  We have six possible directions to go to. We favor some above others.  Every time we make a decision, we want to pick the most favorable one.
-  
-   This is the desired behavior for high speed from most desirable to least desirable:
-   
-   we want to keep moving forward for as long as possible (use wide open space if possible)
-   if we just have minimum front distance to do a turn, we should turn left or right depending on both which angle and which side looks the most promising
-   if we can't turn (no SAFE_DISTANCE in to use to effect a turn), we back away to look towards the distance that has the most potential
-   if we can't turn on reverse (also no safe distance), we just back away straight if there is a long enough range
-   if not, we don't move (no use...)
-  
-  Notes:
-    going on reverse is expected to be slower than going forward
-  */
-  
+int standstill_decision() {
   // FORWARD
-  if(is_safe_turn(readings_forward.values[FORWARD])) { // we can do a turn if we want by going forward
-    if(readings_forward.values[FORWARD] > readings_forward.values[LEFT] && readings_forward.values[FORWARD] > readings_forward.values[RIGHT]) {
+  if(is_safe_large_turn(SENSOR_FRONT)) { // we can do a turn if we want by going forward
+    if(is_greater(SENSOR_FRONT, SENSOR_LEFT) && is_greater(SENSOR_FRONT, SENSOR_RIGHT)) {
       return FORWARD_UNIT;
     }
-    else if(is_safe_turn(readings_forward.values[LEFT]) && (readings_forward.left_side > readings_forward.right_side)) {
+    else if(is_safe_large_turn(SENSOR_LEFT) && is_greater(SENSOR_LEFT, SENSOR_RIGHT)) {
       // left side is most promising
       return FORWARD_LEFT_UNIT;  
     }
-    else if(is_safe_turn(readings_forward.values[RIGHT]) && (readings_forward.right_side > readings_forward.left_side)) {
+    else if(is_safe_large_turn(SENSOR_RIGHT) &&  is_greater(SENSOR_RIGHT, SENSOR_LEFT)) {
       // right side is most promising
       return FORWARD_RIGHT_UNIT;  
     }
@@ -439,31 +428,38 @@ int quick_decision() {
     }
   }
   
+  // Can't turn around safely, try small turns
+  if(is_safe_small_turn(SENSOR_LEFT) && is_safe_small_turn(SENSOR_BACK_RIGHT)) {
+    return SMALL_TURN_CCW;
+  } else if(is_safe_small_turn(SENSOR_RIGHT) && is_safe_small_turn(SENSOR_BACK_LEFT)) {
+    return SMALL_TURN_CW;
+  }
+  
   // REVERSE
   // forward isn't working out, let us see if reverse shows more promise so we can turn to be towards the most promising side...
   // or keep turning to follow through on a previous turn
-  if(is_safe_turn(readings_reverse.values[REVERSE])) {
+  if(is_safe_large_turn(SENSOR_BACK)) {
     // favor to help in a previous turn
-    if(is_safe_turn(readings_reverse.values[LEFT]) && previous_state == FORWARD_LEFT_UNIT) {
+    if(is_safe_large_turn(SENSOR_LEFT) && previous_state == FORWARD_LEFT_UNIT) {
       return REVERSE_LEFT_UNIT;
     }
-    if(is_safe_turn(readings_reverse.values[RIGHT]) && previous_state == FORWARD_RIGHT_UNIT) {
+    if(is_safe_large_turn(SENSOR_RIGHT) && previous_state == FORWARD_RIGHT_UNIT) {
       return REVERSE_RIGHT_UNIT;
     }
     // ... other, select side with best potential
-    if(is_safe_turn(readings_reverse.values[LEFT]) && (readings_reverse.left_side > readings_reverse.right_side)) {
+    if(is_safe_large_turn(SENSOR_LEFT) && is_greater(SENSOR_LEFT_SIDE, SENSOR_RIGHT_SIDE)) {
       // left side is most promising
       return REVERSE_LEFT_UNIT;  
     }
-    else if(is_safe_turn(readings_reverse.values[RIGHT]) && (readings_reverse.right_side > readings_reverse.left_side)) {
+    else if(is_safe_large_turn(SENSOR_RIGHT) && is_greater(SENSOR_RIGHT_SIDE, SENSOR_LEFT_SIDE)) {
       // right side is most promising
       return REVERSE_RIGHT_UNIT;  
     }
   } 
 
   // forward/reverse choice ...
-  if(is_safe_turn(readings_forward.values[FORWARD])) {
-    if(readings_forward.values[FORWARD] > readings_reverse.values[FORWARD]) {
+  if(is_safe_large_turn(SENSOR_FRONT)) {
+    if(is_greater(SENSOR_FRONT, SENSOR_BACK)) {
       return FORWARD_UNIT;
     } else {
       // otherwise, readings_reverse is safe and longest
@@ -471,93 +467,155 @@ int quick_decision() {
     }
   }
   
-  if(is_safe_turn(readings_reverse.values[FORWARD])) {
+  if(is_safe_large_turn(SENSOR_BACK)) {
     return REVERSE_UNIT;
   }
   
   return NO_READING; // we're stuck, nothing safe!
 }
 
-/*
-completes once the sensor has readings left, right and center
- */
-boolean check_left;
-int quick_sweep_number_readings = 0; // use modulo 4 to get every three readings
-int sensor_array_read_next;
-void init_quick_sweep() {
+ /*****************************************************************************
+ * SENSOR FULL SWEEP
+ *****************************************************************************/
+void init_full_sweep() {
   full_stop();
-  sensor_array_read_next = FORWARD_DIR;
-  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
-  current_state = QUICK_SWEEP;
+  sensor_array_read_next = SENSOR_FRONT;
+  update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]);
+  current_state = FULL_SWEEP;
 }
 
-boolean quick_sweep() {
+boolean full_sweep() {
   // we check if we have an updated value here
   int read_value = NO_READING;
   switch(sensor_array_read_next) {
-    case FORWARD_DIR:
-    case FORWARD_LEFT_DIR:
-    case FORWARD_RIGHT_DIR:
-    case SIDE_RIGHT_DIR:
-      read_value = read_sensor(ULTRASONIC_FORWARD, sensor_forward);
+    case SENSOR_LEFT:
+    case SENSOR_FRONT:
+    case SENSOR_RIGHT:
+    case SENSOR_RIGHT_SIDE:
+      read_value = read_sensor(sensor_array_read_next, sensor_forward);
       break;
-    case REVERSE_LEFT_DIR:
-    case REVERSE_DIR:
-    case REVERSE_RIGHT_DIR:
-    case SIDE_LEFT_DIR:
-      read_value = read_sensor(ULTRASONIC_REVERSE, sensor_reverse);
+    case SENSOR_BACK_RIGHT:
+    case SENSOR_BACK_LEFT:
+    case SENSOR_BACK:
+    case SENSOR_LEFT_SIDE:
+      read_value = read_sensor(sensor_array_read_next, sensor_reverse);
       break;
     default:
-      log_bad_state("quick_sweep (reading value)", sensor_array_read_next);
+      log_bad_state("full_sweep (reading value)", sensor_array_read_next);
       break;
   }
+  
   if(read_value != NO_READING) {
     switch(sensor_array_read_next) {
-    case FORWARD_DIR:
-      sensor_array_read_next = REVERSE_DIR;
+    case SENSOR_FRONT:
+      sensor_array_read_next = SENSOR_BACK;
       break;
-    case REVERSE_DIR:
-      sensor_array_read_next = FORWARD_LEFT_DIR;       
-      update_servo_position(SENSOR_LOOKING_LEFT_ANGLE);
+    case SENSOR_BACK:
+      update_servo_position(sensor_position_to_servo_angle[SENSOR_LEFT]);
+      sensor_array_read_next = SENSOR_LEFT;       
       break;
-    case FORWARD_LEFT_DIR:
-      sensor_array_read_next = REVERSE_LEFT_DIR;
+    case SENSOR_LEFT:
+      sensor_array_read_next = SENSOR_BACK_LEFT;
       break;
-    case REVERSE_LEFT_DIR:
-      sensor_array_read_next = FORWARD_RIGHT_DIR;         
-      update_servo_position(SENSOR_LOOKING_RIGHT_ANGLE);
+    case SENSOR_BACK_LEFT:
+      update_servo_position(sensor_position_to_servo_angle[SENSOR_RIGHT]);
+      sensor_array_read_next = SENSOR_RIGHT;         
       break;
-    case FORWARD_RIGHT_DIR:
-      sensor_array_read_next = REVERSE_RIGHT_DIR;
+    case SENSOR_RIGHT:
+      sensor_array_read_next = SENSOR_BACK_RIGHT;
       break;
-    case REVERSE_RIGHT_DIR:
-      sensor_array_read_next = SIDE_RIGHT_DIR;
-      update_servo_position(SENSOR_LOOKING_SIDEWAY_RIGHT_ANGLE);
+    case SENSOR_BACK_RIGHT:
+      update_servo_position(sensor_position_to_servo_angle[SENSOR_RIGHT_SIDE]);
+      sensor_array_read_next = SENSOR_RIGHT_SIDE;
       break;
-    case SIDE_RIGHT_DIR:
-      sensor_array_read_next = SIDE_LEFT_DIR;
+    case SENSOR_RIGHT_SIDE:
+      sensor_array_read_next = SENSOR_LEFT_SIDE;
       break;
-    case SIDE_LEFT_DIR:
-      sensor_array_read_next = FORWARD_DIR;
-      update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);
+    case SENSOR_LEFT_SIDE:
+      update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]);
+      sensor_array_read_next = SENSOR_FRONT;
       return true; // completed sweep!
       break;
     default:
-      log_bad_state("quick_sweep (figuring where to go next)", sensor_array_read_next);
+      log_bad_state("full_sweep (figuring where to go next)", sensor_array_read_next);
       break;
     }
   }
   return false;
 }
 
+ /*****************************************************************************
+ * STUCK
+ *****************************************************************************/
+
 void init_stuck() {
   full_stop();
   current_state = STUCK;
 }
 
+ /*****************************************************************************
+ * SMALL RADIUS TURN
+ *****************************************************************************/
+int target_distance_cm = SAFE_DISTANCE_LARGE_TURN;
+int small_turn_state;
+void init_small_turn(int small_turn_type) {
+  full_stop();
+  update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]);  
+  target_distance_cm = current_max_distance_cm();
+  if(small_turn_type == SMALL_TURN_CCW) {
+    small_turn_state = REVERSE_RIGHT;
+  } else {
+    small_turn_state = REVERSE_LEFT;
+  }
+}
+
+boolean handle_small_turn() {
+  if(!timed_operation_expired(WAIT_FOR_ROBOT_TO_MOVE)) {
+    // there's a pending timer...
+    return false;
+  }
+  
+  if(approximate_equal(target_distance_cm, read_sensor(SENSOR_FRONT, sensor_forward))) {
+    full_stop();
+    return true;
+  }
+  
+  switch(small_turn_state) {
+    case FORWARD_LEFT:
+      go(FORWARD);
+      go(LEFT);
+      small_turn_state = REVERSE_RIGHT;
+      break;
+    case REVERSE_RIGHT:
+      go(REVERSE);
+      go(RIGHT);
+      small_turn_state = FORWARD_LEFT;
+      break;
+    case FORWARD_RIGHT:
+      go(FORWARD);
+      go(RIGHT);
+      small_turn_state = REVERSE_LEFT;
+      break;
+    case REVERSE_LEFT:
+      go(REVERSE);
+      go(LEFT);
+      small_turn_state = FORWARD_RIGHT;
+      break;      
+    default:
+      log_bad_state("handle_small_turn", small_turn_state);
+      break;
+  }
+  start_timed_operation(WAIT_FOR_ROBOT_TO_MOVE, MIN_TIME_UNIT_MILLIS);
+  return false;
+}
+
+ /*****************************************************************************
+ * SMALL STEPS (UNIT) MOVEMENTS WITH TIMER
+ *****************************************************************************/
 void init_direction_unit(int decision) {
   full_stop();
-  update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE);  
+  update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]);  
+
   switch(decision) {
   case FORWARD_LEFT_UNIT:
     go(LEFT);
@@ -576,7 +634,7 @@ void init_direction_unit(int decision) {
     // do nothing, we will decide below what to do
     break;
   default:
-    log_bad_state("quick_sweep init_direction_unit (converting to wheel direction)", decision);
+    log_bad_state("full_sweep init_direction_unit (converting to wheel direction)", decision);
     break;
   }
   previous_state = current_state;
@@ -609,6 +667,21 @@ void init_direction_unit(int decision) {
   go(dir);
 }
 
+
+void handle_unit(int sensor, Ultrasonic& sensor_object) {
+  if(timed_operation_expired(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT)) {
+    init_full_sweep();
+  }
+  if(read_sensor(sensor, sensor_object) != NO_READING) {
+    if(!is_safe_large_turn(SENSOR_FRONT)) {
+      init_full_sweep();
+    }
+  }
+}
+
+ /*****************************************************************************
+ * STOP BUTTON
+ *****************************************************************************/
 void check_button() {
   // read the state of the pushbutton value:
   if(!timed_operation_expired(WAIT_FOR_BUTTON_REREAD)) {
@@ -627,23 +700,15 @@ void check_button() {
     else {
       full_stop();
       current_state = STOP;
-      update_servo_position(SENSOR_LOOKING_FORWARD_ANGLE); 
+      update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]); 
     }
     start_timed_operation(WAIT_FOR_BUTTON_REREAD, 1000);
   } 
 }
 
-void handle_unit(int sensor, Ultrasonic& sensor_object) {
-  if(timed_operation_expired(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT)) {
-    init_quick_sweep();
-  }
-  if(read_sensor(sensor, sensor_object) != NO_READING) {
-    if(potential_collision(sensor)) {
-      init_quick_sweep();
-    }
-  }
-}
-
+ /*****************************************************************************
+ * MAIN STATE MACHINE LOOP
+ *****************************************************************************/
 void loop(){
   int initial_state = current_state;
   int decision;
@@ -652,18 +717,22 @@ void loop(){
     // initial; this initiates what type of sub-state-machine we want to use
     // unit: move one unit, scan, decide, move one unit, scan, decide, move one unit...
   case INITIAL:
-    init_quick_sweep(); // change this to change sub-state-machine
+    init_full_sweep(); // change this to change sub-state-machine
     break;
-  case QUICK_SWEEP:
-    if(quick_sweep()) {
+  case FULL_SWEEP:
+    if(full_sweep()) {
       // one sweep completed
-      init_quick_decision();
+      init_standstill_decision();
     }
     break;
-  case QUICK_DECISION:
-    decision = quick_decision();
+  case STANDSTILL_DECISION:
+    decision = standstill_decision();
     if(decision != NO_READING) {
-      init_direction_unit(decision);
+      if(decision == SMALL_TURN_CW || decision == SMALL_TURN_CCW) {
+        init_small_turn(decision);
+      } else {
+        init_direction_unit(decision);
+      }
     } 
     else {
       init_stuck();
@@ -679,6 +748,13 @@ void loop(){
   case REVERSE_RIGHT_UNIT:
     handle_unit(ULTRASONIC_REVERSE, sensor_reverse);
     break;
+  case SMALL_TURN_CW:
+  case SMALL_TURN_CCW:
+    if(handle_small_turn()) {
+      // small turn completed with target max distance
+      init_direction_unit(FORWARD_UNIT);   
+    }
+    break;
   case STOP:
     // do nothing...
     if(LOG_LEVEL >= INFO) {
@@ -688,7 +764,7 @@ void loop(){
     }
     break;
   case STUCK:
-    init_quick_sweep();
+    init_full_sweep();
     break;
 
   default:
