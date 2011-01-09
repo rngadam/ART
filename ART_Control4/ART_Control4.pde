@@ -170,8 +170,10 @@ Check whether the timer has expired
  */
 boolean timed_operation_expired(enum_t index) {
   if((millis() - timed_operation_initiated_millis[index]) < timed_operation_desired_wait_millis[index]) {
+    //DEBUG_PRINT("not expired");
     return false;
   }
+  //DEBUG_PRINT("expired");
   return true;
 }
 
@@ -224,7 +226,7 @@ void update_servo_position(angle_t desired_sensor_servo_angle) {
   if(sensor_servo.read() != desired_sensor_servo_angle) {
     // calculate expected wait BEFORE going there...
     wait_millis = expected_wait_millis(SERVO_TURN_RATE_MS_PER_DEGREE, sensor_servo.read(), desired_sensor_servo_angle);
-    sensor_servo.write(desired_sensor_servo_angle);              // tell servo to go to position in variable 'pos' \
+    sensor_servo.write(desired_sensor_servo_angle);              // tell servo to go to position in variable 'pos'
     start_timed_operation(WAIT_FOR_SERVO_TO_TURN, wait_millis);
 
     LOG_TELEMETRY(SENSOR_SERVO_POSITION_CHANGE, sensor_servo.read(), desired_sensor_servo_angle);
@@ -538,10 +540,6 @@ boolean is_greater(enum_t sensor_a, enum_t sensor_b) {
   return sensor_distance_readings_cm[sensor_a] > sensor_distance_readings_cm[sensor_b];
 }
 
-boolean approximate_equal(distance_cm_t current, distance_cm_t target) {
-  return current > (target - CAR_LENGTH/2) && current < (target + CAR_LENGTH/2);
-}
-
 /*****************************************************************************
  * STATE INITS AND HANDLERS
  *****************************************************************************/
@@ -714,32 +712,22 @@ void init_small_turn(enum_t small_turn_type) {
   full_stop();
   update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]);  
   target_distance_cm = current_max_distance_cm();
-  if(small_turn_type == SMALL_TURN_CCW) {
-    if(small_turn_state == FORWARD_LEFT) {
-      small_turn_state = REVERSE_RIGHT;
-    } else {
-      small_turn_state = FORWARD_LEFT;
-    }
-  } 
-  else {
-    if(small_turn_state == FORWARD_RIGHT) {
-      small_turn_state = REVERSE_LEFT;
-    } else {
-      small_turn_state = FORWARD_RIGHT;
-    }    
-  }
   current_state = small_turn_type;
+  if(small_turn_type == SMALL_TURN_CCW) { 
+    small_turn_state = FORWARD_LEFT; 
+  } else {
+    small_turn_state = FORWARD_RIGHT; 
+  }
 }
 
-boolean handle_small_turn() {
-  if(!timed_operation_expired(WAIT_FOR_ROBOT_TO_MOVE)) {
-    // there's a pending timer...
-    return false;
-  }
-
-  if(approximate_equal(target_distance_cm, read_sensor(SENSOR_FRONT, sensor_forward))) {
+boolean handle_small_turn(enum_t small_turn_type) {
+  if(read_sensor(SENSOR_FRONT, sensor_forward) > (target_distance_cm - CAR_LENGTH/2) || !is_safe_small_turn(SENSOR_FRONT)) {
     full_stop();
     return true;
+  }
+
+  if(!timed_operation_expired(WAIT_FOR_ROBOT_TO_MOVE)) {
+    return false;
   }
 
   switch(small_turn_state) {
@@ -907,9 +895,9 @@ void loop(){
     break;
   case SMALL_TURN_CW:
   case SMALL_TURN_CCW:
-    if(handle_small_turn()) {
+    if(handle_small_turn(current_state)) {
       // small turn completed with target max distance
-      init_direction_unit(FORWARD_UNIT);   
+      init_full_sweep();  
     }
     break;
   case STOP:
