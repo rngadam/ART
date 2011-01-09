@@ -18,27 +18,44 @@ enum telemetry_types {
   STATE_CHANGE,
   SENSOR_SERVO_POSITION_CHANGE,
   CAR_GO_COMMAND,
-  CAR_SUSPEND_COMMAND
+  CAR_SUSPEND_COMMAND,
+  MAX_TELEMETRY_TYPE,
 };
 
-const int LOG_LEVEL = DEBUG;
+char* telemetry_types_names[] = {
+  "ULTRASONIC_SENSORS",
+  "STATE_CHANGE",
+  "SENSOR_SERVO_POSITION_CHANGE",
+  "CAR_GO_COMMAND",
+  "CAR_SUSPEND_COMMAND",
+};
+
+const int LOG_LEVEL = TRACE;
 
 void log_bad_state(char* str, int value) {
   if(LOG_LEVEL >= ERROR) {
-    Serial.print("Bad state in: ");
+    Serial.print("ERROR: Bad state in: ");
     Serial.print(str);
     Serial.print(" value:");
     Serial.println(value);
+    Serial.flush();
   }
 }
 
 void log_telemetry(int type, int source, int value) {
+  if(type < 0 || type >= MAX_TELEMETRY_TYPE) {
+    log_bad_state("log_telemetry: Incorrect log telemetry type", type);
+  }
+  unsigned long event_time = millis();
   if(LOG_LEVEL >= TELEMETRY) {
-    log_telemetry_serial_print(millis(), type, source, value);
+    log_telemetry_serial_print(event_time, type, source, value);
   }  
+  if(LOG_LEVEL >= INFO) {
+    //log_telemetry_serial_user_print(event_time, type, source, value);
+  }
 }
 
-void log_telemetry_serial_print(int time, int type, int source, int value) {
+void log_telemetry_serial_print(unsigned long time, int type, int source, int value) {
   Serial.print("|");
   Serial.print(time);
   Serial.print(",");
@@ -47,6 +64,24 @@ void log_telemetry_serial_print(int time, int type, int source, int value) {
   Serial.print(source);
   Serial.print(",");
   Serial.println(value);  
+  Serial.flush();
+}
+
+void log_telemetry_serial_user_print(unsigned long time, int type, int source, int value) {
+  Serial.print(time);
+  Serial.print(",");
+  Serial.print(telemetry_types_names[type]);
+  Serial.print(",");
+  if(type == STATE_CHANGE) {
+    Serial.print((char)source);
+    Serial.print(",");
+    Serial.println((char)value);
+  } else {
+    Serial.print(source);
+    Serial.print(",");
+    Serial.println(value);
+  }  
+  Serial.flush();
 }
 /*****************************************************************************
  * ARDUINO PINS MAPPING
@@ -82,13 +117,13 @@ enum waits_types {
   WAIT_ARRAY_SIZE, // always last...
 };
 
-int timed_operation_initiated_millis[WAIT_ARRAY_SIZE];
-int timed_operation_desired_wait_millis[WAIT_ARRAY_SIZE];
+unsigned long timed_operation_initiated_millis[WAIT_ARRAY_SIZE];
+unsigned int timed_operation_desired_wait_millis[WAIT_ARRAY_SIZE];
 
 /*
 record current time to compare to
  */
-void start_timed_operation(int index, int duration) {
+void start_timed_operation(int index, unsigned int duration) {
   timed_operation_initiated_millis[index] = millis();
   timed_operation_desired_wait_millis[index] = duration;
   if(LOG_LEVEL >= TRACE) {
@@ -96,6 +131,7 @@ void start_timed_operation(int index, int duration) {
     Serial.print(index);
     Serial.print(" wait in millis:");
     Serial.println(duration);
+    Serial.flush();
   }
 }
 
@@ -104,7 +140,7 @@ Check whether the timer has expired
  if expired, returns true else returns false
  */
 boolean timed_operation_expired(int index) {
-  int current_time = millis();
+  unsigned long current_time = millis();
   if((current_time - timed_operation_initiated_millis[index]) < timed_operation_desired_wait_millis[index]) {
     return false;
   }
@@ -127,10 +163,8 @@ We're sweeping the servo either left or right
  */
 const int SERVO_TURN_RATE_PER_SECOND = 100; // 100 = 60/(0.2*3) where 3 is caused by load?
 Servo sensor_servo;   
-// variable to store the servo current and desired angle 
-int current_sensor_servo_angle = 0;
 
-int expected_wait_millis(int turn_rate, int initial_angle, int desired_angle) {
+unsigned int expected_wait_millis(int turn_rate, int initial_angle, int desired_angle) {
   int delta;
   if(initial_angle < 0 || desired_angle < 0) { 
     return 0;
@@ -148,14 +182,27 @@ int expected_wait_millis(int turn_rate, int initial_angle, int desired_angle) {
 }
 
 void update_servo_position(int desired_sensor_servo_angle) {  
-  if(current_sensor_servo_angle != desired_sensor_servo_angle) {
-    sensor_servo.write(desired_sensor_servo_angle-1);              // tell servo to go to position in variable 'pos' 
+  switch(desired_sensor_servo_angle) {
+    case 0:
+    case 45:
+    case 90:
+    case 135:
+      // OK!
+      break;
+     default:
+       log_bad_state("Bad servo position update", desired_sensor_servo_angle);
+       return;
+       break;
+  }
+  if(sensor_servo.read() != desired_sensor_servo_angle) {
+    sensor_servo.write(desired_sensor_servo_angle);              // tell servo to go to position in variable 'pos' 
 
-    int wait_millis = expected_wait_millis(SERVO_TURN_RATE_PER_SECOND, current_sensor_servo_angle, desired_sensor_servo_angle);
+    unsigned int wait_millis = expected_wait_millis(SERVO_TURN_RATE_PER_SECOND, sensor_servo.read(), desired_sensor_servo_angle);
     start_timed_operation(WAIT_FOR_SERVO_TO_TURN, wait_millis);
 
-    log_telemetry(SENSOR_SERVO_POSITION_CHANGE, current_sensor_servo_angle, desired_sensor_servo_angle);
-    current_sensor_servo_angle = desired_sensor_servo_angle;
+    log_telemetry(SENSOR_SERVO_POSITION_CHANGE, sensor_servo.read(), desired_sensor_servo_angle);
+  } else if (LOG_LEVEL >= TRACE) {
+    Serial.println("Requesting sensor servo position already set");
   }
 }
 
@@ -179,19 +226,19 @@ const int SENSOR_MINIMAL_WAIT_ECHO_MILLIS = (SENSOR_MAX_RANGE_CM*2*1000)/SPEED_O
 
 /*
 
-SENSOR_LEFT       SENSOR_FRONT       SENSOR_RIGHT
-                  -----------
-                  |   ^     | 
-                  |         |
-SENSOR_LEFT_SIDE  |         |   SENSOR_RIGHT_SIDE 
-                  |         |
-                  |         |
-                  |         |
-                  -----------
-SENSOR_BACK_LEFT  SENSOR_BACK   SENSOR_BACK_RIGHT
+SENSOR_LEFT(135)      SENSOR_FRONT (90)   SENSOR_RIGHT (45)
+                        -----------
+                        |   ^     | 
+                        |         |
+SENSOR_LEFT_SIDE(0)     |         |       SENSOR_RIGHT_SIDE (0)
+                        |         |
+                        |         |
+                        |         |
+                        -----------
+SENSOR_BACK_LEFT(45)  SENSOR_BACK(90)     SENSOR_BACK_RIGHT(135)
  */
 enum sensor_position {
-  SENSOR_LEFT,
+  SENSOR_LEFT, 
   SENSOR_FRONT, 
   SENSOR_RIGHT,
   SENSOR_LEFT_SIDE,
@@ -203,14 +250,14 @@ enum sensor_position {
 };
 
 const int sensor_position_to_servo_angle[] = {
-  135,
-  90,
-  45,
-  0,
-  0,
-  45,
-  90,
-  135,
+  135, // SENSOR_LEFT
+  90, // SENSOR_FRONT
+  45, // SENSOR_RIGHT
+  0, // SENSOR_LEFT_SIDE
+  0, // SENSOR_RIGHT_SIDE
+  45, // SENSOR_BACK_LEFT
+  90, // SENSOR BACK
+  135, // SENSOR_BACK_RIGHT
 };
 
 enum ultrasonics {
@@ -257,8 +304,16 @@ int read_sensor(int sensor, Ultrasonic& sensor_object) {
     return NO_READING;
   }
 
-  if(current_sensor_servo_angle != sensor_position_to_servo_angle[sensor]) {
-    log_bad_state("read_sensor() servo current_position does not match sensor desired angle", current_sensor_servo_angle);
+  if(sensor_servo.read() != sensor_position_to_servo_angle[sensor]) {
+    if(LOG_LEVEL >= ERROR) {
+      Serial.print("ERROR: read_sensor() servo current_position does not match sensor desired angle:");
+      Serial.print(" current servo position:");
+      Serial.print(sensor_servo.read());
+      Serial.print(" expected:");
+      Serial.print(sensor_position_to_servo_angle[sensor]);
+      Serial.print(" from sensor:");
+      Serial.println(sensor);
+    }
     return NO_READING;
   }
   
@@ -403,6 +458,11 @@ int previous_state = FORWARD_UNIT;
  * SETUP
  *****************************************************************************/
 void setup() { 
+  // make sure we get all error message output
+  Serial.begin(9600);
+  Serial.println("ART STARTED");
+  Serial.println("Setting Arduino pins");
+
   // these map to the contact switches on the RF
   pinMode(FORWARD_PIN, OUTPUT);     
   pinMode(REVERSE_PIN, OUTPUT);    
@@ -414,14 +474,18 @@ void setup() {
   //buttons
   pinMode(PUSHBUTTON_PIN, INPUT);
 
+  Serial.println("Full stop");
   full_stop();
+  Serial.println("Servo init");
   sensor_servo.attach(SENSOR_SERVO_PIN);
+  sensor_servo.write(90);
+  delay(500);
+  Serial.println("Timers init");
   for(int i=0; i<WAIT_ARRAY_SIZE; i++) {
     timed_operation_initiated_millis[i] = 0;  
     timed_operation_desired_wait_millis[i] = 0;
   }
-  update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]);   
-  Serial.begin(9600);
+  Serial.println("ART SETUP COMPLETED");
 }
 
 /*****************************************************************************
@@ -575,28 +639,24 @@ boolean full_sweep() {
       sensor_array_read_next = SENSOR_BACK;
       break;
     case SENSOR_BACK:
-      update_servo_position(sensor_position_to_servo_angle[SENSOR_LEFT]);
       sensor_array_read_next = SENSOR_LEFT;       
       break;
     case SENSOR_LEFT:
       sensor_array_read_next = SENSOR_BACK_LEFT;
       break;
     case SENSOR_BACK_LEFT:
-      update_servo_position(sensor_position_to_servo_angle[SENSOR_RIGHT]);
       sensor_array_read_next = SENSOR_RIGHT;         
       break;
     case SENSOR_RIGHT:
       sensor_array_read_next = SENSOR_BACK_RIGHT;
       break;
     case SENSOR_BACK_RIGHT:
-      update_servo_position(sensor_position_to_servo_angle[SENSOR_RIGHT_SIDE]);
       sensor_array_read_next = SENSOR_RIGHT_SIDE;
       break;
     case SENSOR_RIGHT_SIDE:
       sensor_array_read_next = SENSOR_LEFT_SIDE;
       break;
     case SENSOR_LEFT_SIDE:
-      update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]);
       sensor_array_read_next = SENSOR_FRONT;
       return true; // completed sweep!
       break;
@@ -604,6 +664,7 @@ boolean full_sweep() {
       log_bad_state("full_sweep (figuring where to go next)", sensor_array_read_next);
       break;
     }
+    update_servo_position(sensor_position_to_servo_angle[sensor_array_read_next]);
   }
   return false;
 }
@@ -722,10 +783,9 @@ void init_direction_unit(int decision) {
     log_bad_state("init_direction_unit (converting to forward or backward motion)", decision);
     break;
   }
-  int forward_time_millis = get_forward_time_millis();
   if(LOG_LEVEL >= INFO) {
     Serial.print("Will move for (ms): ");
-    Serial.println(forward_time_millis);
+    Serial.println(time_millis);
   }
   start_timed_operation(WAIT_FOR_ROBOT_TO_ADVANCE_UNIT, time_millis);
   go(dir);
