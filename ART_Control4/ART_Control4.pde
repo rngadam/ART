@@ -204,7 +204,6 @@ duration_ms_t expected_wait_millis(turn_rate_t turn_rate, angle_t initial_angle,
   else {
     return_value = turn_rate * (desired_angle - initial_angle);
   }
-  DEBUG_PRINT(return_value);
   return return_value;
 }
 
@@ -226,13 +225,12 @@ void update_servo_position(angle_t desired_sensor_servo_angle) {
     // calculate expected wait BEFORE going there...
     wait_millis = expected_wait_millis(SERVO_TURN_RATE_MS_PER_DEGREE, sensor_servo.read(), desired_sensor_servo_angle);
     sensor_servo.write(desired_sensor_servo_angle);              // tell servo to go to position in variable 'pos' \
-    DEBUG_PRINT(wait_millis);
     start_timed_operation(WAIT_FOR_SERVO_TO_TURN, wait_millis);
 
     LOG_TELEMETRY(SENSOR_SERVO_POSITION_CHANGE, sensor_servo.read(), desired_sensor_servo_angle);
   } 
   else {
-    DEBUG_PRINT("Requesting sensor servo position already set");
+    LOG_TRACE2("Requesting sensor servo position already set", desired_sensor_servo_angle);
   }
 }
 
@@ -717,11 +715,20 @@ void init_small_turn(enum_t small_turn_type) {
   update_servo_position(sensor_position_to_servo_angle[SENSOR_FRONT]);  
   target_distance_cm = current_max_distance_cm();
   if(small_turn_type == SMALL_TURN_CCW) {
-    small_turn_state = REVERSE_RIGHT;
+    if(small_turn_state == FORWARD_LEFT) {
+      small_turn_state = REVERSE_RIGHT;
+    } else {
+      small_turn_state = FORWARD_LEFT;
+    }
   } 
   else {
-    small_turn_state = REVERSE_LEFT;
+    if(small_turn_state == FORWARD_RIGHT) {
+      small_turn_state = REVERSE_LEFT;
+    } else {
+      small_turn_state = FORWARD_RIGHT;
+    }    
   }
+  current_state = small_turn_type;
 }
 
 boolean handle_small_turn() {
