@@ -346,7 +346,7 @@ distance_cm_t read_sensor(enum_t sensor, Ultrasonic& sensor_object) {
     return NO_READING;
   }
 
-  distance_cm_t return_value = update_sensor_value(sensor, sensor_object.Ranging(CM));
+  distance_cm_t return_value = update_sensor_value(sensor, sensor_object.Ranging());
   LOG_TELEMETRY(ULTRASONIC_SENSORS, sensor, return_value); 
   start_timed_operation(WAIT_FOR_ECHO, SENSOR_MINIMAL_WAIT_ECHO_MILLIS);
   return return_value;
