@@ -1,0 +1,9 @@
+ART5 (Autonomous Robot Toy version 5) combines the following:
+
+- Mechanical four wheel vehicule based on a toy RC for propulsion and chassis
+- Arduino Microcontroller  platform for communication and decisions
+- CPLD for low-level sensor data acquisition and motor control
+- RF communication to/from PC for debugging and visualization
+- Processing-based dashboard on the PC.
+
+RF communication solution is for telemetry and has been selected to be low-bandwidth, medium-range, low-power and inexpensive.
