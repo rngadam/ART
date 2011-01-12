@@ -1,0 +1,659 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.2"
+   width="1.83in"
+   height="3.03in"
+   viewBox="0 0 1830 3030"
+   id="svg13041"
+   
+   >
+  <metadata
+     id="metadata13141">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs13139" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     
+     
+     
+     
+     id="namedview13137"
+     showgrid="false"
+     
+     
+     
+     
+     
+     
+      />
+  <g
+     id="schematic">
+    <rect
+       x="315"
+       y="15"
+       fill="none"
+       width="1200"
+       height="3000"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       id="rect13044" />
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="15"
+       y1="315"
+       x2="300"
+       y2="315"
+       id="line13047" />
+    <rect
+       x="0"
+       y="300"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector0pin"
+       stroke-width="0" />
+    <rect
+       x="0"
+       y="300"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector0terminal"
+       stroke-width="0" />
+    <text
+       id="label0"
+       x="390"
+       y="350"
+       font-size="130"
+       style="font-size:130px;text-anchor:start;fill:#000000;stroke:none;font-family:DroidSans">VCC(5V)</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="1515"
+       y1="315"
+       x2="1815"
+       y2="315"
+       id="line13052" />
+    <rect
+       x="1530"
+       y="300"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector17pin"
+       stroke-width="0" />
+    <rect
+       x="1830"
+       y="300"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector17terminal"
+       stroke-width="0" />
+    <text
+       id="label17"
+       x="1440"
+       y="350"
+       font-size="130"
+       style="font-size:130px;text-anchor:end;fill:#000000;stroke:none;font-family:DroidSans">GND</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="15"
+       y1="615"
+       x2="300"
+       y2="615"
+       id="line13057" />
+    <rect
+       x="0"
+       y="600"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector1pin"
+       stroke-width="0" />
+    <rect
+       x="0"
+       y="600"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector1terminal"
+       stroke-width="0" />
+    <text
+       id="label1"
+       x="390"
+       y="650"
+       font-size="130"
+       style="font-size:130px;text-anchor:start;fill:#000000;stroke:none;font-family:DroidSans">VCC(5V)</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="1515"
+       y1="615"
+       x2="1815"
+       y2="615"
+       id="line13062" />
+    <rect
+       x="1530"
+       y="600"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector16pin"
+       stroke-width="0" />
+    <rect
+       x="1830"
+       y="600"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector16terminal"
+       stroke-width="0" />
+    <text
+       id="label16"
+       x="1440"
+       y="650"
+       font-size="130"
+       style="font-size:130px;text-anchor:end;fill:#000000;stroke:none;font-family:DroidSans">GND</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="15"
+       y1="915"
+       x2="300"
+       y2="915"
+       id="line13067" />
+    <rect
+       x="0"
+       y="900"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector2pin"
+       stroke-width="0" />
+    <rect
+       x="0"
+       y="900"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector2terminal"
+       stroke-width="0" />
+    <text
+       id="label2"
+       x="390"
+       y="950"
+       font-size="130"
+       style="font-size:130px;text-anchor:start;fill:#000000;stroke:none;font-family:DroidSans">VCC(3V)</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="1515"
+       y1="915"
+       x2="1815"
+       y2="915"
+       id="line13072" />
+    <rect
+       x="1530"
+       y="900"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector15pin"
+       stroke-width="0" />
+    <rect
+       x="1830"
+       y="900"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector15terminal"
+       stroke-width="0" />
+    <text
+       id="label15"
+       x="1440"
+       y="950"
+       font-size="130"
+       style="font-size:130px;text-anchor:end;fill:#000000;stroke:none;font-family:DroidSans">SI</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="15"
+       y1="1215"
+       x2="300"
+       y2="1215"
+       id="line13077" />
+    <rect
+       x="0"
+       y="1200"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector3pin"
+       stroke-width="0" />
+    <rect
+       x="0"
+       y="1200"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector3terminal"
+       stroke-width="0" />
+    <text
+       id="label3"
+       x="390"
+       y="1250"
+       font-size="130"
+       style="font-size:130px;text-anchor:start;fill:#000000;stroke:none;font-family:DroidSans">SO</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="1515"
+       y1="1215"
+       x2="1815"
+       y2="1215"
+       id="line13082" />
+    <rect
+       x="1530"
+       y="1200"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector14pin"
+       stroke-width="0" />
+    <rect
+       x="1830"
+       y="1200"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector14terminal"
+       stroke-width="0" />
+    <text
+       id="label14"
+       x="1440"
+       y="1250"
+       font-size="130"
+       style="font-size:130px;text-anchor:end;fill:#000000;stroke:none;font-family:DroidSans">SCLK</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="15"
+       y1="1515"
+       x2="300"
+       y2="1515"
+       id="line13087" />
+    <rect
+       x="0"
+       y="1500"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector4pin"
+       stroke-width="0" />
+    <rect
+       x="0"
+       y="1500"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector4terminal"
+       stroke-width="0" />
+    <text
+       id="label4"
+       x="390"
+       y="1550"
+       font-size="130"
+       style="font-size:130px;text-anchor:start;fill:#000000;stroke:none;font-family:DroidSans">PAC</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="1515"
+       y1="1515"
+       x2="1815"
+       y2="1515"
+       id="line13092" />
+    <rect
+       x="1530"
+       y="1500"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector13pin"
+       stroke-width="0" />
+    <rect
+       x="1830"
+       y="1500"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector13terminal"
+       stroke-width="0" />
+    <text
+       id="label13"
+       x="1440"
+       y="1550"
+       font-size="130"
+       style="font-size:130px;text-anchor:end;fill:#000000;stroke:none;font-family:DroidSans">GDO2</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="15"
+       y1="1815"
+       x2="300"
+       y2="1815"
+       id="line13097" />
+    <rect
+       x="0"
+       y="1800"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector5pin"
+       stroke-width="0" />
+    <rect
+       x="0"
+       y="1800"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector5terminal"
+       stroke-width="0" />
+    <text
+       id="label5"
+       x="390"
+       y="1850"
+       font-size="130"
+       style="font-size:130px;text-anchor:start;fill:#000000;stroke:none;font-family:DroidSans">CSn</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="1515"
+       y1="1815"
+       x2="1815"
+       y2="1815"
+       id="line13102" />
+    <rect
+       x="1530"
+       y="1800"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector12pin"
+       stroke-width="0" />
+    <rect
+       x="1830"
+       y="1800"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector12terminal"
+       stroke-width="0" />
+    <text
+       id="label12"
+       x="1440"
+       y="1850"
+       font-size="130"
+       style="font-size:130px;text-anchor:end;fill:#000000;stroke:none;font-family:DroidSans">GDO0</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="15"
+       y1="2115"
+       x2="300"
+       y2="2115"
+       id="line13107" />
+    <rect
+       x="0"
+       y="2100"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector6pin"
+       stroke-width="0" />
+    <rect
+       x="0"
+       y="2100"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector6terminal"
+       stroke-width="0" />
+    <text
+       id="label6"
+       x="390"
+       y="2150"
+       font-size="130"
+       style="font-size:130px;text-anchor:start;fill:#000000;stroke:none;font-family:DroidSans">NC</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="1515"
+       y1="2115"
+       x2="1815"
+       y2="2115"
+       id="line13112" />
+    <rect
+       x="1530"
+       y="2100"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector11pin"
+       stroke-width="0" />
+    <rect
+       x="1830"
+       y="2100"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector11terminal"
+       stroke-width="0" />
+    <text
+       id="label11"
+       x="1440"
+       y="2150"
+       font-size="130"
+       style="font-size:130px;text-anchor:end;fill:#000000;stroke:none;font-family:DroidSans">NC</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="15"
+       y1="2415"
+       x2="300"
+       y2="2415"
+       id="line13117" />
+    <rect
+       x="0"
+       y="2400"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector7pin"
+       stroke-width="0" />
+    <rect
+       x="0"
+       y="2400"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector7terminal"
+       stroke-width="0" />
+    <text
+       id="label7"
+       x="390"
+       y="2450"
+       font-size="130"
+       style="font-size:130px;text-anchor:start;fill:#000000;stroke:none;font-family:DroidSans">NC</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="1515"
+       y1="2415"
+       x2="1815"
+       y2="2415"
+       id="line13122" />
+    <rect
+       x="1530"
+       y="2400"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector10pin"
+       stroke-width="0" />
+    <rect
+       x="1830"
+       y="2400"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector10terminal"
+       stroke-width="0" />
+    <text
+       id="label10"
+       x="1440"
+       y="2450"
+       font-size="130"
+       style="font-size:130px;text-anchor:end;fill:#000000;stroke:none;font-family:DroidSans">NC</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="15"
+       y1="2715"
+       x2="300"
+       y2="2715"
+       id="line13127" />
+    <rect
+       x="0"
+       y="2700"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector8pin"
+       stroke-width="0" />
+    <rect
+       x="0"
+       y="2700"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector8terminal"
+       stroke-width="0" />
+    <text
+       id="label8"
+       x="390"
+       y="2750"
+       font-size="130"
+       style="font-size:130px;text-anchor:start;fill:#000000;stroke:none;font-family:DroidSans">GND</text>
+    <line
+       fill="none"
+       stroke="#000000"
+       stroke-linejoin="round"
+       stroke-linecap="round"
+       stroke-width="30"
+       x1="1515"
+       y1="2715"
+       x2="1815"
+       y2="2715"
+       id="line13132" />
+    <rect
+       x="1530"
+       y="2700"
+       fill="none"
+       width="300"
+       height="30"
+       id="connector9pin"
+       stroke-width="0" />
+    <rect
+       x="1830"
+       y="2700"
+       fill="none"
+       width="30"
+       height="30"
+       id="connector9terminal"
+       stroke-width="0" />
+    <text
+       id="label9"
+       x="1440"
+       y="2750"
+       font-size="130"
+       style="font-size:130px;text-anchor:end;fill:#000000;stroke:none;font-family:DroidSans">GND</text>
+  </g>
+</svg>

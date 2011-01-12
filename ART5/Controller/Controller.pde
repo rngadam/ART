@@ -14,10 +14,10 @@ const byte ECHOSONAR_PIN = A0; //DIP36
 
 /* SPI (RF communication transceiver) uses these pins:
 
-pin 10	SS	SPI slave select
-pin 11	MOSI	SPI master out, slave in
-pin 12	MISO	SPI master in, slave out
-pin 13	SCK	SPI clock	
+pin 10	SS	SPI slave select ---> to transceiver SCLK
+pin 11	MOSI	SPI master out, slave in ---> to transceiver SI
+pin 12	MISO	SPI master in, slave out ---> to transceiver SO
+pin 13	SCK	SPI clock ---> to transceiver CSn
 */
 void setup() {
 
