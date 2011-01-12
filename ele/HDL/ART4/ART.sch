@@ -6,31 +6,9 @@
         <trait edittrait="all:0" />
     </attr>
     <netlist>
-        <signal name="XLXN_239" />
-        <signal name="XLXN_240" />
-        <signal name="XLXN_241" />
-        <signal name="XLXN_242" />
-        <signal name="TriggerSonar2" />
-        <signal name="TriggerSonar3" />
-        <signal name="TriggerSonar1" />
-        <signal name="TriggerSonar0" />
-        <signal name="EchoSonar3" />
-        <signal name="EchoSonar2" />
-        <signal name="EchoSonar1" />
-        <signal name="EchoSonar0" />
-        <signal name="XLXN_261" />
-        <signal name="XLXN_260" />
-        <signal name="XLXN_259" />
-        <signal name="XLXN_258" />
-        <signal name="XLXN_33" />
-        <signal name="XLXN_322" />
-        <signal name="EchoSonar" />
-        <signal name="TriggerSonar" />
-        <signal name="XLXN_340" />
         <signal name="XLXN_150" />
         <signal name="XLXN_159" />
         <signal name="XLXN_164" />
-        <signal name="XLXN_167" />
         <signal name="XLXN_168" />
         <signal name="XLXN_169" />
         <signal name="ForwardDir" />
@@ -52,15 +30,42 @@
         <signal name="DIRSEL0" />
         <signal name="DIRSEL1" />
         <signal name="DIRSEL2" />
-        <signal name="SONARSEL0" />
-        <signal name="SONARSEL1" />
-        <signal name="XLXN_393" />
-        <signal name="XLXN_394" />
-        <signal name="XLXN_395" />
+        <signal name="XLXN_401" />
+        <signal name="XLXN_239" />
+        <signal name="XLXN_240" />
+        <signal name="XLXN_241" />
+        <signal name="XLXN_242" />
+        <signal name="TriggerSonar2" />
+        <signal name="TriggerSonar3" />
+        <signal name="TriggerSonar1" />
+        <signal name="TriggerSonar0" />
+        <signal name="EchoSonar3" />
+        <signal name="EchoSonar2" />
+        <signal name="EchoSonar1" />
+        <signal name="EchoSonar0" />
+        <signal name="XLXN_261" />
+        <signal name="XLXN_260" />
+        <signal name="XLXN_259" />
+        <signal name="XLXN_258" />
+        <signal name="XLXN_33" />
+        <signal name="XLXN_322" />
+        <signal name="EchoSonar" />
+        <signal name="TriggerSonar" />
+        <signal name="XLXN_340" />
+        <signal name="XLXN_423" />
         <signal name="XLXN_396" />
         <signal name="XLXN_398" />
-        <signal name="XLXN_400" />
-        <signal name="XLXN_401" />
+        <signal name="SONARSEL0" />
+        <signal name="SONARSEL1" />
+        <port polarity="Output" name="ForwardDir" />
+        <port polarity="Output" name="ReverseDir" />
+        <port polarity="Output" name="RightDir" />
+        <port polarity="Output" name="LeftDir" />
+        <port polarity="Output" name="UserFunction0" />
+        <port polarity="Output" name="UserFunction1" />
+        <port polarity="Input" name="DIRSEL0" />
+        <port polarity="Input" name="DIRSEL1" />
+        <port polarity="Input" name="DIRSEL2" />
         <port polarity="Output" name="TriggerSonar2" />
         <port polarity="Output" name="TriggerSonar3" />
         <port polarity="Output" name="TriggerSonar1" />
@@ -71,15 +76,6 @@
         <port polarity="Input" name="EchoSonar0" />
         <port polarity="Output" name="EchoSonar" />
         <port polarity="Input" name="TriggerSonar" />
-        <port polarity="Output" name="ForwardDir" />
-        <port polarity="Output" name="ReverseDir" />
-        <port polarity="Output" name="RightDir" />
-        <port polarity="Output" name="LeftDir" />
-        <port polarity="Output" name="UserFunction0" />
-        <port polarity="Output" name="UserFunction1" />
-        <port polarity="Input" name="DIRSEL0" />
-        <port polarity="Input" name="DIRSEL1" />
-        <port polarity="Input" name="DIRSEL2" />
         <port polarity="Input" name="SONARSEL0" />
         <port polarity="Input" name="SONARSEL1" />
         <blockdef name="m4_1e">
@@ -239,26 +235,6 @@
             <line x2="-780" y1="-128" y2="-80" x1="-780" />
             <line x2="-80" y1="-176" y2="-176" x1="-112" />
             <line x2="-144" y1="-128" y2="-128" x1="-176" />
-            <rect width="100" x="-968" y="-356" height="92" />
-            <line x2="-948" y1="-356" y2="-376" x1="-948" />
-            <line x2="-932" y1="-356" y2="-376" x1="-932" />
-            <line x2="-916" y1="-356" y2="-376" x1="-916" />
-            <line x2="-900" y1="-356" y2="-376" x1="-900" />
-            <line x2="-948" y1="-244" y2="-264" x1="-948" />
-            <line x2="-932" y1="-244" y2="-264" x1="-932" />
-            <line x2="-916" y1="-244" y2="-264" x1="-916" />
-            <line x2="-900" y1="-244" y2="-264" x1="-900" />
-            <line x2="-884" y1="-244" y2="-264" x1="-884" />
-            <line x2="-840" y1="-336" y2="-336" x1="-864" />
-            <line x2="-840" y1="-320" y2="-320" x1="-864" />
-            <line x2="-840" y1="-304" y2="-304" x1="-864" />
-            <line x2="-840" y1="-288" y2="-288" x1="-864" />
-            <line x2="-968" y1="-336" y2="-336" x1="-992" />
-            <line x2="-968" y1="-320" y2="-320" x1="-992" />
-            <line x2="-968" y1="-304" y2="-304" x1="-992" />
-            <line x2="-968" y1="-288" y2="-288" x1="-992" />
-            <line x2="-828" y1="-292" y2="-300" x1="-828" />
-            <line x2="-884" y1="-356" y2="-376" x1="-884" />
             <line x2="-920" y1="-360" y2="-364" x1="-840" />
             <arc ex="-816" ey="-252" sx="-924" sy="-260" r="72" cx="-867" cy="-306" />
             <line x2="-924" y1="-264" y2="-260" x1="-844" />
@@ -266,61 +242,24 @@
             <line x2="-840" y1="-304" y2="-360" x1="-808" />
             <line x2="-816" y1="-296" y2="-360" x1="-628" />
             <line x2="-632" y1="-252" y2="-264" x1="-816" />
-            <arc ex="-1020" ey="-312" sx="-968" sy="-376" r="46" cx="-978" cy="-331" />
-            <arc ex="-1044" ey="-284" sx="-940" sy="-392" r="77" cx="-977" cy="-323" />
+            <arc ex="-976" ey="-300" sx="-936" sy="-380" r="46" cx="-944" cy="-334" />
+            <arc ex="-972" ey="-264" sx="-920" sy="-396" r="70" cx="-948" cy="-331" />
             <line x2="-628" y1="-264" y2="-296" x1="-632" />
             <arc ex="-920" ey="-364" sx="-816" sy="-360" r="53" cx="-869" cy="-346" />
+            <rect width="40" x="-904" y="-332" height="40" />
+            <line x2="-836" y1="-328" y2="-328" x1="-860" />
+            <line x2="-836" y1="-312" y2="-312" x1="-860" />
+            <line x2="-836" y1="-296" y2="-296" x1="-860" />
+            <line x2="-900" y1="-268" y2="-288" x1="-900" />
+            <line x2="-884" y1="-268" y2="-288" x1="-884" />
+            <line x2="-868" y1="-268" y2="-288" x1="-868" />
+            <line x2="-904" y1="-328" y2="-328" x1="-928" />
+            <line x2="-904" y1="-312" y2="-312" x1="-928" />
+            <line x2="-904" y1="-296" y2="-296" x1="-928" />
+            <line x2="-900" y1="-332" y2="-352" x1="-900" />
+            <line x2="-884" y1="-332" y2="-352" x1="-884" />
+            <line x2="-868" y1="-332" y2="-352" x1="-868" />
         </blockdef>
-        <block symbolname="d2_4e" name="XLXI_9">
-            <blockpin signalname="XLXN_396" name="A0" />
-            <blockpin signalname="XLXN_398" name="A1" />
-            <blockpin signalname="XLXN_340" name="E" />
-            <blockpin signalname="XLXN_239" name="D0" />
-            <blockpin signalname="XLXN_240" name="D1" />
-            <blockpin signalname="XLXN_241" name="D2" />
-            <blockpin signalname="XLXN_242" name="D3" />
-        </block>
-        <block symbolname="obuf4" name="XLXI_53">
-            <blockpin signalname="XLXN_239" name="I0" />
-            <blockpin signalname="XLXN_240" name="I1" />
-            <blockpin signalname="XLXN_241" name="I2" />
-            <blockpin signalname="XLXN_242" name="I3" />
-            <blockpin signalname="TriggerSonar0" name="O0" />
-            <blockpin signalname="TriggerSonar1" name="O1" />
-            <blockpin signalname="TriggerSonar2" name="O2" />
-            <blockpin signalname="TriggerSonar3" name="O3" />
-        </block>
-        <block symbolname="ibuf4" name="XLXI_59">
-            <blockpin signalname="EchoSonar3" name="I0" />
-            <blockpin signalname="EchoSonar2" name="I1" />
-            <blockpin signalname="EchoSonar1" name="I2" />
-            <blockpin signalname="EchoSonar0" name="I3" />
-            <blockpin signalname="XLXN_261" name="O0" />
-            <blockpin signalname="XLXN_260" name="O1" />
-            <blockpin signalname="XLXN_259" name="O2" />
-            <blockpin signalname="XLXN_258" name="O3" />
-        </block>
-        <block symbolname="vcc" name="XLXI_6">
-            <blockpin signalname="XLXN_33" name="P" />
-        </block>
-        <block symbolname="obuf" name="XLXI_72">
-            <blockpin signalname="XLXN_322" name="I" />
-            <blockpin signalname="EchoSonar" name="O" />
-        </block>
-        <block symbolname="m4_1e" name="XLXI_2">
-            <blockpin signalname="XLXN_258" name="D0" />
-            <blockpin signalname="XLXN_259" name="D1" />
-            <blockpin signalname="XLXN_260" name="D2" />
-            <blockpin signalname="XLXN_261" name="D3" />
-            <blockpin signalname="XLXN_33" name="E" />
-            <blockpin signalname="XLXN_396" name="S0" />
-            <blockpin signalname="XLXN_398" name="S1" />
-            <blockpin signalname="XLXN_322" name="O" />
-        </block>
-        <block symbolname="ibuf" name="XLXI_77">
-            <blockpin signalname="TriggerSonar" name="I" />
-            <blockpin signalname="XLXN_340" name="O" />
-        </block>
         <block symbolname="vcc" name="XLXI_40">
             <blockpin signalname="XLXN_150" name="P" />
         </block>
@@ -396,6 +335,57 @@
             <blockpin signalname="DIRSEL2" name="I" />
             <blockpin signalname="XLXN_387" name="O" />
         </block>
+        <block symbolname="copy_of_title" name="XLXI_115" />
+        <block symbolname="d2_4e" name="XLXI_9">
+            <blockpin signalname="XLXN_396" name="A0" />
+            <blockpin signalname="XLXN_398" name="A1" />
+            <blockpin signalname="XLXN_340" name="E" />
+            <blockpin signalname="XLXN_239" name="D0" />
+            <blockpin signalname="XLXN_240" name="D1" />
+            <blockpin signalname="XLXN_241" name="D2" />
+            <blockpin signalname="XLXN_242" name="D3" />
+        </block>
+        <block symbolname="obuf4" name="XLXI_53">
+            <blockpin signalname="XLXN_239" name="I0" />
+            <blockpin signalname="XLXN_240" name="I1" />
+            <blockpin signalname="XLXN_241" name="I2" />
+            <blockpin signalname="XLXN_242" name="I3" />
+            <blockpin signalname="TriggerSonar0" name="O0" />
+            <blockpin signalname="TriggerSonar1" name="O1" />
+            <blockpin signalname="TriggerSonar2" name="O2" />
+            <blockpin signalname="TriggerSonar3" name="O3" />
+        </block>
+        <block symbolname="ibuf4" name="XLXI_59">
+            <blockpin signalname="EchoSonar3" name="I0" />
+            <blockpin signalname="EchoSonar2" name="I1" />
+            <blockpin signalname="EchoSonar1" name="I2" />
+            <blockpin signalname="EchoSonar0" name="I3" />
+            <blockpin signalname="XLXN_261" name="O0" />
+            <blockpin signalname="XLXN_260" name="O1" />
+            <blockpin signalname="XLXN_259" name="O2" />
+            <blockpin signalname="XLXN_258" name="O3" />
+        </block>
+        <block symbolname="vcc" name="XLXI_6">
+            <blockpin signalname="XLXN_33" name="P" />
+        </block>
+        <block symbolname="obuf" name="XLXI_72">
+            <blockpin signalname="XLXN_322" name="I" />
+            <blockpin signalname="EchoSonar" name="O" />
+        </block>
+        <block symbolname="m4_1e" name="XLXI_2">
+            <blockpin signalname="XLXN_258" name="D0" />
+            <blockpin signalname="XLXN_259" name="D1" />
+            <blockpin signalname="XLXN_260" name="D2" />
+            <blockpin signalname="XLXN_261" name="D3" />
+            <blockpin signalname="XLXN_33" name="E" />
+            <blockpin signalname="XLXN_396" name="S0" />
+            <blockpin signalname="XLXN_398" name="S1" />
+            <blockpin signalname="XLXN_322" name="O" />
+        </block>
+        <block symbolname="ibuf" name="XLXI_77">
+            <blockpin signalname="TriggerSonar" name="I" />
+            <blockpin signalname="XLXN_340" name="O" />
+        </block>
         <block symbolname="ibuf" name="XLXI_110">
             <blockpin signalname="SONARSEL0" name="I" />
             <blockpin signalname="XLXN_396" name="O" />
@@ -404,89 +394,8 @@
             <blockpin signalname="SONARSEL1" name="I" />
             <blockpin signalname="XLXN_398" name="O" />
         </block>
-        <block symbolname="copy_of_title" name="XLXI_115" />
     </netlist>
     <sheet sheetnum="1" width="3520" height="2720">
-        <instance x="480" y="576" name="XLXI_9" orien="R0" />
-        <text style="fontsize:64;fontname:Arial" x="460" y="1476">Sensor Selection</text>
-        <branch name="XLXN_239">
-            <wire x2="896" y1="256" y2="256" x1="864" />
-        </branch>
-        <branch name="XLXN_240">
-            <wire x2="896" y1="320" y2="320" x1="864" />
-        </branch>
-        <branch name="XLXN_241">
-            <wire x2="896" y1="384" y2="384" x1="864" />
-        </branch>
-        <branch name="XLXN_242">
-            <wire x2="896" y1="448" y2="448" x1="864" />
-        </branch>
-        <instance x="896" y="480" name="XLXI_53" orien="R0" />
-        <branch name="TriggerSonar2">
-            <wire x2="1152" y1="384" y2="384" x1="1120" />
-        </branch>
-        <iomarker fontsize="28" x="1152" y="384" name="TriggerSonar2" orien="R0" />
-        <branch name="TriggerSonar3">
-            <wire x2="1152" y1="448" y2="448" x1="1120" />
-        </branch>
-        <iomarker fontsize="28" x="1152" y="448" name="TriggerSonar3" orien="R0" />
-        <branch name="TriggerSonar1">
-            <wire x2="1152" y1="320" y2="320" x1="1120" />
-        </branch>
-        <iomarker fontsize="28" x="1152" y="320" name="TriggerSonar1" orien="R0" />
-        <branch name="TriggerSonar0">
-            <wire x2="1152" y1="256" y2="256" x1="1120" />
-        </branch>
-        <iomarker fontsize="28" x="1152" y="256" name="TriggerSonar0" orien="R0" />
-        <branch name="EchoSonar3">
-            <wire x2="1280" y1="1088" y2="1088" x1="1200" />
-        </branch>
-        <branch name="EchoSonar2">
-            <wire x2="1280" y1="1024" y2="1024" x1="1200" />
-        </branch>
-        <branch name="EchoSonar1">
-            <wire x2="1280" y1="960" y2="960" x1="1200" />
-        </branch>
-        <branch name="EchoSonar0">
-            <wire x2="1280" y1="896" y2="896" x1="1200" />
-        </branch>
-        <branch name="XLXN_261">
-            <wire x2="976" y1="1088" y2="1088" x1="896" />
-        </branch>
-        <branch name="XLXN_260">
-            <wire x2="976" y1="1024" y2="1024" x1="896" />
-        </branch>
-        <branch name="XLXN_259">
-            <wire x2="976" y1="960" y2="960" x1="896" />
-        </branch>
-        <branch name="XLXN_258">
-            <wire x2="976" y1="896" y2="896" x1="896" />
-        </branch>
-        <branch name="XLXN_33">
-            <wire x2="1136" y1="1280" y2="1280" x1="896" />
-        </branch>
-        <branch name="XLXN_322">
-            <wire x2="576" y1="992" y2="992" x1="560" />
-        </branch>
-        <branch name="EchoSonar">
-            <wire x2="336" y1="992" y2="992" x1="208" />
-        </branch>
-        <instance x="1200" y="864" name="XLXI_59" orien="R180" />
-        <instance x="1136" y="1216" name="XLXI_6" orien="R90" />
-        <instance x="560" y="960" name="XLXI_72" orien="R180" />
-        <instance x="896" y="1312" name="XLXI_2" orien="M0" />
-        <iomarker fontsize="28" x="1280" y="1088" name="EchoSonar3" orien="R0" />
-        <iomarker fontsize="28" x="1280" y="1024" name="EchoSonar2" orien="R0" />
-        <iomarker fontsize="28" x="1280" y="960" name="EchoSonar1" orien="R0" />
-        <iomarker fontsize="28" x="1280" y="896" name="EchoSonar0" orien="R0" />
-        <branch name="TriggerSonar">
-            <wire x2="224" y1="448" y2="448" x1="208" />
-        </branch>
-        <instance x="224" y="480" name="XLXI_77" orien="R0" />
-        <branch name="XLXN_340">
-            <wire x2="480" y1="448" y2="448" x1="448" />
-        </branch>
-        <iomarker fontsize="28" x="208" y="448" name="TriggerSonar" orien="R180" />
         <branch name="XLXN_150">
             <wire x2="512" y1="2192" y2="2256" x1="512" />
             <wire x2="608" y1="2256" y2="2256" x1="512" />
@@ -598,39 +507,6 @@
         <branch name="DIRSEL2">
             <wire x2="400" y1="1856" y2="1856" x1="336" />
         </branch>
-        <iomarker fontsize="28" x="208" y="704" name="SONARSEL1" orien="R180" />
-        <iomarker fontsize="28" x="208" y="992" name="EchoSonar" orien="R180" />
-        <branch name="XLXN_396">
-            <wire x2="416" y1="128" y2="256" x1="416" />
-            <wire x2="480" y1="256" y2="256" x1="416" />
-            <wire x2="1424" y1="128" y2="128" x1="416" />
-            <wire x2="1424" y1="128" y2="576" x1="1424" />
-            <wire x2="720" y1="576" y2="576" x1="528" />
-            <wire x2="1424" y1="576" y2="576" x1="720" />
-            <wire x2="720" y1="560" y2="576" x1="720" />
-            <wire x2="960" y1="560" y2="560" x1="720" />
-            <wire x2="960" y1="560" y2="1152" x1="960" />
-            <wire x2="960" y1="1152" y2="1152" x1="896" />
-        </branch>
-        <branch name="XLXN_398">
-            <wire x2="432" y1="112" y2="320" x1="432" />
-            <wire x2="480" y1="320" y2="320" x1="432" />
-            <wire x2="880" y1="112" y2="112" x1="432" />
-            <wire x2="880" y1="112" y2="704" x1="880" />
-            <wire x2="912" y1="704" y2="704" x1="880" />
-            <wire x2="912" y1="704" y2="1216" x1="912" />
-            <wire x2="880" y1="704" y2="704" x1="528" />
-            <wire x2="912" y1="1216" y2="1216" x1="896" />
-        </branch>
-        <branch name="SONARSEL0">
-            <wire x2="304" y1="576" y2="576" x1="208" />
-        </branch>
-        <branch name="SONARSEL1">
-            <wire x2="304" y1="704" y2="704" x1="208" />
-        </branch>
-        <instance x="304" y="608" name="XLXI_110" orien="R0" />
-        <instance x="304" y="736" name="XLXI_111" orien="R0" />
-        <iomarker fontsize="28" x="208" y="576" name="SONARSEL0" orien="R180" />
         <branch name="XLXN_401">
             <wire x2="1056" y1="2112" y2="2112" x1="1040" />
             <wire x2="1088" y1="2112" y2="2112" x1="1056" />
@@ -639,5 +515,118 @@
         </branch>
         <instance x="3520" y="2672" name="XLXI_115" orien="R0">
         </instance>
+        <instance x="640" y="592" name="XLXI_9" orien="R0" />
+        <branch name="XLXN_239">
+            <wire x2="1056" y1="272" y2="272" x1="1024" />
+        </branch>
+        <branch name="XLXN_240">
+            <wire x2="1056" y1="336" y2="336" x1="1024" />
+        </branch>
+        <branch name="XLXN_241">
+            <wire x2="1056" y1="400" y2="400" x1="1024" />
+        </branch>
+        <branch name="XLXN_242">
+            <wire x2="1056" y1="464" y2="464" x1="1024" />
+        </branch>
+        <instance x="1056" y="496" name="XLXI_53" orien="R0" />
+        <branch name="TriggerSonar2">
+            <wire x2="1312" y1="400" y2="400" x1="1280" />
+        </branch>
+        <branch name="TriggerSonar3">
+            <wire x2="1312" y1="464" y2="464" x1="1280" />
+        </branch>
+        <branch name="TriggerSonar1">
+            <wire x2="1312" y1="336" y2="336" x1="1280" />
+        </branch>
+        <branch name="TriggerSonar0">
+            <wire x2="1312" y1="272" y2="272" x1="1280" />
+        </branch>
+        <branch name="EchoSonar3">
+            <wire x2="1440" y1="1104" y2="1104" x1="1360" />
+        </branch>
+        <branch name="EchoSonar2">
+            <wire x2="1440" y1="1040" y2="1040" x1="1360" />
+        </branch>
+        <branch name="EchoSonar1">
+            <wire x2="1440" y1="976" y2="976" x1="1360" />
+        </branch>
+        <branch name="EchoSonar0">
+            <wire x2="1440" y1="912" y2="912" x1="1360" />
+        </branch>
+        <branch name="XLXN_261">
+            <wire x2="1136" y1="1104" y2="1104" x1="1056" />
+        </branch>
+        <branch name="XLXN_260">
+            <wire x2="1136" y1="1040" y2="1040" x1="1056" />
+        </branch>
+        <branch name="XLXN_259">
+            <wire x2="1136" y1="976" y2="976" x1="1056" />
+        </branch>
+        <branch name="XLXN_258">
+            <wire x2="1136" y1="912" y2="912" x1="1056" />
+        </branch>
+        <branch name="XLXN_33">
+            <wire x2="1296" y1="1296" y2="1296" x1="1056" />
+        </branch>
+        <branch name="XLXN_322">
+            <wire x2="736" y1="1008" y2="1008" x1="720" />
+        </branch>
+        <branch name="EchoSonar">
+            <wire x2="496" y1="1008" y2="1008" x1="368" />
+        </branch>
+        <instance x="1360" y="880" name="XLXI_59" orien="R180" />
+        <instance x="1296" y="1232" name="XLXI_6" orien="R90" />
+        <instance x="720" y="976" name="XLXI_72" orien="R180" />
+        <instance x="1056" y="1328" name="XLXI_2" orien="M0" />
+        <branch name="TriggerSonar">
+            <wire x2="384" y1="464" y2="464" x1="368" />
+        </branch>
+        <instance x="384" y="496" name="XLXI_77" orien="R0" />
+        <branch name="XLXN_340">
+            <wire x2="640" y1="464" y2="464" x1="608" />
+        </branch>
+        <branch name="XLXN_396">
+            <wire x2="576" y1="144" y2="272" x1="576" />
+            <wire x2="640" y1="272" y2="272" x1="576" />
+            <wire x2="1584" y1="144" y2="144" x1="576" />
+            <wire x2="1584" y1="144" y2="592" x1="1584" />
+            <wire x2="880" y1="592" y2="592" x1="688" />
+            <wire x2="1584" y1="592" y2="592" x1="880" />
+            <wire x2="880" y1="576" y2="592" x1="880" />
+            <wire x2="1120" y1="576" y2="576" x1="880" />
+            <wire x2="1120" y1="576" y2="1168" x1="1120" />
+            <wire x2="1120" y1="1168" y2="1168" x1="1056" />
+        </branch>
+        <branch name="XLXN_398">
+            <wire x2="592" y1="128" y2="336" x1="592" />
+            <wire x2="640" y1="336" y2="336" x1="592" />
+            <wire x2="1040" y1="128" y2="128" x1="592" />
+            <wire x2="1040" y1="128" y2="720" x1="1040" />
+            <wire x2="1072" y1="720" y2="720" x1="1040" />
+            <wire x2="1072" y1="720" y2="1232" x1="1072" />
+            <wire x2="1040" y1="720" y2="720" x1="688" />
+            <wire x2="1072" y1="1232" y2="1232" x1="1056" />
+        </branch>
+        <branch name="SONARSEL0">
+            <wire x2="464" y1="592" y2="592" x1="368" />
+        </branch>
+        <branch name="SONARSEL1">
+            <wire x2="464" y1="720" y2="720" x1="368" />
+        </branch>
+        <instance x="464" y="624" name="XLXI_110" orien="R0" />
+        <instance x="464" y="752" name="XLXI_111" orien="R0" />
+        <iomarker fontsize="28" x="1312" y="400" name="TriggerSonar2" orien="R0" />
+        <iomarker fontsize="28" x="1312" y="464" name="TriggerSonar3" orien="R0" />
+        <iomarker fontsize="28" x="1312" y="336" name="TriggerSonar1" orien="R0" />
+        <iomarker fontsize="28" x="1312" y="272" name="TriggerSonar0" orien="R0" />
+        <iomarker fontsize="28" x="1440" y="1104" name="EchoSonar3" orien="R0" />
+        <iomarker fontsize="28" x="1440" y="1040" name="EchoSonar2" orien="R0" />
+        <iomarker fontsize="28" x="1440" y="976" name="EchoSonar1" orien="R0" />
+        <iomarker fontsize="28" x="1440" y="912" name="EchoSonar0" orien="R0" />
+        <iomarker fontsize="28" x="368" y="464" name="TriggerSonar" orien="R180" />
+        <iomarker fontsize="28" x="368" y="720" name="SONARSEL1" orien="R180" />
+        <iomarker fontsize="28" x="368" y="1008" name="EchoSonar" orien="R180" />
+        <iomarker fontsize="28" x="368" y="592" name="SONARSEL0" orien="R180" />
+        <text style="fontsize:64;fontname:Arial" x="720" y="1396">Sensor Selection</text>
     </sheet>
 </drawing>

@@ -12,13 +12,13 @@ NET "EchoSonar3"  LOC = "P16"  ;
 #DIP07 / NOT CONNECTED
 #DIP08 / NOT CONNECTED
 #DIP09 / 18
-NET "UserFunction0"  LOC = "P18"  ;
 #DIP10 / 19
-NET "UserFunction1"  LOC = "P19"  ;
 #DIP11 / 20
+NET "UserFunction0"  LOC = "P20"  ;
 #DIP12 / 21
+NET "UserFunction1"  LOC = "P21"  ;
 #DIP13 / 22
-NET "TriggerSonar"  LOC = "P22"  ;
+NET "TRIGGERSONAR"  LOC = "P22"  ;
 #DIP14 / 23
 NET "SONARSEL0"  LOC = "P23"  ;
 #DIP15 / 27
