@@ -52,21 +52,36 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     units="cm" />
+     units="cm"
+     showguides="true"
+     inkscape:guide-bbox="true">
+    <sodipodi:guide
+       orientation="-0.70710678,0.70710678"
+       position="-119.45312,91.813061"
+       id="guide13693" />
+    <sodipodi:guide
+       orientation="1,0"
+       position="7.6911464,58.404643"
+       id="guide13695" />
+    <sodipodi:guide
+       orientation="1,0"
+       position="15.382293,52.636283"
+       id="guide13697" />
+  </sodipodi:namedview>
   <desc
      id="desc13400">Fritzing footprint SVG</desc>
   <g
      id="keepout"
-     transform="translate(-10.000003,-11.617021)" />
+     transform="translate(-10.000003,-11.618021)" />
   <g
      id="soldermask"
-     transform="translate(-10.000003,-11.617021)" />
+     transform="translate(-10.000003,-11.618021)" />
   <g
      id="outline"
-     transform="translate(-10.000003,-11.617021)" />
+     transform="translate(-10.000003,-11.618021)" />
   <g
      id="copper0-7"
-     transform="matrix(-1,0,0,-1,153.44548,939.14598)">
+     transform="matrix(-1,0,0,-1,153.44548,939.14498)">
     <rect
        style="fill:none;stroke:#ffbf00;stroke-width:20"
        id="rect13415-6"
@@ -176,7 +191,7 @@
   </g>
   <g
      id="g13643"
-     transform="translate(0,-0.00202085)">
+     transform="translate(0,-0.00302085)">
     <rect
        transform="scale(-1,-1)"
        style="fill:none;stroke:#ffbf00;stroke-width:20"
@@ -334,4 +349,10 @@
        cy="70"
        cx="70" />
   </g>
+  <path
+     style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     d="m 7.6911464,-8.2920202 7.6911466,0"
+     id="path13701"
+     inkscape:connector-curvature="0"
+     transform="scale(11.111111,11.111111)" />
 </svg>
