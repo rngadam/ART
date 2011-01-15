@@ -32,10 +32,12 @@ const byte ECHOSONAR_PIN = A0; //DIP36
 
 /* SPI (RF communication transceiver) uses these pins:
 
-pin 10	SS	SPI slave select ---> to transceiver SCLK (yellow)
+http://www.arduino.cc/playground/Code/Spi
+
+pin 10	SS	SPI slave select ---> to transceiver CSn (yellow)
 pin 11	MOSI	SPI master out, slave in ---> to transceiver SI (blue)
 pin 12	MISO	SPI master in, slave out ---> to transceiver SO (orange)
-pin 13	SCK	SPI clock ---> to transceiver CSn (white)
+pin 13	SCK	SPI clock ---> to transceiver SLCK  (white)
 */
 void setup() {
 
