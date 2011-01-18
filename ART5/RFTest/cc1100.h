@@ -5,31 +5,31 @@
 
 //--------------------------------------------------------------
 //<RF-Configuration-Register values (ordered by register number)
-#define IOCFG2        0x29//0x07       
-#define IOCFG1        0x46       
-#define IOCFG0        0x47//0x29       
-#define FIFOTHR       0x07       
-#define SYNC1         0xd3       
-#define SYNC0         0x91       
-#define PKTLEN        0x21      
-#define PKTCTRL1      0x0e//0x0d      
-#define PKTCTRL0      0x44       
-#define ADDR          0xcc            
-#define CHANNR        0x61//0x00      
+#define IOCFG2        0x0B//0x07       
+#define IOCFG1        0x46 //?     
+#define IOCFG0        0x06//0x29       
+#define FIFOTHR       0x07 //?   
+#define SYNC1         0xd3 //?       
+#define SYNC0         0x91 //?       
+#define PKTLEN        0xff      
+#define PKTCTRL1      0x04      
+#define PKTCTRL0      0x05       
+#define ADDR          0x00            
+#define CHANNR        0x00     
 #define FSCTRL1       0x08       
 #define FSCTRL0       0x00       
-#define FREQ2         0x0f       
-#define FREQ1         0xc4       
-#define FREQ0         0xec   
-#define MDMCFG4       0x2d//0x7b       
-#define MDMCFG3       0x3b//0x83  
-#define MDMCFG2       0x73       
-#define MDMCFG1       0xa2       
+#define FREQ2         0x10
+#define FREQ1         0xa7       
+#define FREQ0         0x62   
+#define MDMCFG4       0x5b//0x7b       
+#define MDMCFG3       0xf8//0x83  
+#define MDMCFG2       0x03       
+#define MDMCFG1       0x22       
 #define MDMCFG0       0xf8       
-#define DEVIATN       0x00       
-#define MCSM2         0x07       
-#define MCSM1         0x3f       
-#define MCSM0         0x18       
+#define DEVIATN       0x47       
+#define MCSM2         0x07  // ?      
+#define MCSM1         0x3f  // ?     
+#define MCSM0         0x18        
 #define FOCCFG        0x1d       
 #define BSCFG         0x1c       
 #define AGCCTRL2      0xc7    
@@ -97,10 +97,25 @@ AGCCTRL2,AGCCTRL1,AGCCTRL0,WOREVT1,WOREVT0,WORCTRL,FREND1,FREND0,FSCAL3,FSCAL2,F
 #define ADDR_FSCAL2      0x24         
 #define ADDR_FSCAL1      0x25         
 #define ADDR_FSCAL0      0x26         
-
+#define ADDR_RCCTRL1     0x27
+#define ADDR_RCCTRL0     0x28 
 #define ADDR_FSTEST      0x29         
+#define ADDR_FSTEST       0x29        // Frequency synthesizer calibration control
+#define ADDR_PTEST        0x2A        // Production test
+#define ADDR_AGCTEST      0x2B        // AGC test
+#define ADDR_TEST2        0x2C        // Various test settings
+#define ADDR_TEST1        0x2D        // Various test settings
+#define ADDR_TEST0        0x2E        // Various test settings
 
 #define ADDR_TEST2       0x2c        
 #define ADDR_TEST1       0x2d         
 #define ADDR_TEST0       0x2e   
+
+#define         WRITE_BURST         0x40		
+#define 	READ_SINGLE         0x80		
+#define 	READ_BURST          0xC0		
+#define 	BYTES_IN_RXFIFO     0x7F  		
+#define 	CRC_OK              0x80 
 #endif  //cc1100_driver_h
+
+		
