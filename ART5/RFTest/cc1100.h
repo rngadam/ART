@@ -14,7 +14,7 @@
 #define PKTLEN        0xff      
 #define PKTCTRL1      0x04      
 #define PKTCTRL0      0x05       
-#define ADDR          0x00            
+#define ADDR          0x00 // broadcast!           
 #define CHANNR        0x00     
 #define FSCTRL1       0x08       
 #define FSCTRL0       0x00       
@@ -116,6 +116,49 @@ AGCCTRL2,AGCCTRL1,AGCCTRL0,WOREVT1,WOREVT0,WORCTRL,FREND1,FREND0,FSCAL3,FSCAL2,F
 #define 	READ_BURST          0xC0		
 #define 	BYTES_IN_RXFIFO     0x7F  		
 #define 	CRC_OK              0x80 
+
+// Strobe commands
+#define CCxxx0_SRES         0x30        // Reset chip.
+#define CCxxx0_SFSTXON      0x31        // Enable and calibrate frequency synthesizer (if MCSM0.FS_AUTOCAL=1).
+                                        // If in RX/TX: Go to a wait state where only the synthesizer is
+                                        // running (for quick RX / TX turnaround).
+#define CCxxx0_SXOFF        0x32        // Turn off crystal oscillator.
+#define CCxxx0_SCAL         0x33        // Calibrate frequency synthesizer and turn it off
+                                        // (enables quick start).
+#define CCxxx0_SRX          0x34        // Enable RX. Perform calibration first if coming from IDLE and
+                                        // MCSM0.FS_AUTOCAL=1.
+#define CCxxx0_STX          0x35        // In IDLE state: Enable TX. Perform calibration first if
+                                        // MCSM0.FS_AUTOCAL=1. If in RX state and CCA is enabled:
+                                        // Only go to TX if channel is clear.
+#define CCxxx0_SIDLE        0x36        // Exit RX / TX, turn off frequency synthesizer and exit
+                                        // Wake-On-Radio mode if applicable.
+#define CCxxx0_SAFC         0x37        // Perform AFC adjustment of the frequency synthesizer
+#define CCxxx0_SWOR         0x38        // Start automatic RX polling sequence (Wake-on-Radio)
+#define CCxxx0_SPWD         0x39        // Enter power down mode when CSn goes high.
+#define CCxxx0_SFRX         0x3A        // Flush the RX FIFO buffer.
+#define CCxxx0_SFTX         0x3B        // Flush the TX FIFO buffer.
+#define CCxxx0_SWORRST      0x3C        // Reset real time clock.
+#define CCxxx0_SNOP         0x3D        // No operation. May be used to pad strobe commands to two
+                                        // INT8Us for simpler software.
+#define CCxxx0_PARTNUM      0x30
+#define CCxxx0_VERSION      0x31
+#define CCxxx0_FREQEST      0x32
+#define CCxxx0_LQI          0x33
+#define CCxxx0_RSSI         0x34
+#define CCxxx0_MARCSTATE    0x35
+#define CCxxx0_WORTIME1     0x36
+#define CCxxx0_WORTIME0     0x37
+#define CCxxx0_PKTSTATUS    0x38
+#define CCxxx0_VCO_VC_DAC   0x39
+#define CCxxx0_TXBYTES      0x3A
+#define CCxxx0_RXBYTES      0x3B
+
+#define CCxxx0_PATABLE      0x3E
+#define CCxxx0_TXFIFO       0x3F
+#define CCxxx0_RXFIFO       0x3F
+
+const byte PA_TABLE[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0};   //10dBm
+
 #endif  //cc1100_driver_h
 
 		
