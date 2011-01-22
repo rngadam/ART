@@ -94,8 +94,6 @@
 #define 	BYTES_IN_RXFIFO     0x7F  		
 #define 	CRC_OK              0x80 
 
-#define BYTE byte
-
 #endif  //cc1100_driver_h
 
 		

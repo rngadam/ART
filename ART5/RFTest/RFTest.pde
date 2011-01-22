@@ -86,13 +86,17 @@ void setup() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV4); // 16Mhz/4 = 4Mhz
   
-  outputConfig(rfSettings);
   powerUpReset();
   
   //Configure registers to match NetUSB
   for(byte i=0; i<ADDR_RCCTRL0+1; i++) {
     writeRegister(i, rfSettings.registers[i]);
   }
+  // skip a few registers we're not supposed to write to
+  writeRegister(ADDR_PTEST, rfSettings.rfSettings.ptest);
+  writeRegister(ADDR_TEST2, rfSettings.rfSettings.test2);
+  writeRegister(ADDR_TEST1, rfSettings.rfSettings.test1);
+  writeRegister(ADDR_TEST0, rfSettings.rfSettings.test0);
   
   // strobe configuration
   writeRegisterBurst(CCxxx0_PATABLE, PA_TABLE, 8);
@@ -120,15 +124,6 @@ void loop() {
       break;
   }
   delay(1000);
-}
-
-void outputConfig(const settings_u& rfSettings) {
-  if(rfSettings.rfSettingsValues.gdo2_cfg & CHP_RDY) {
-    Serial.println("GDO2 output CHP_RDY");
-  }
-  if(rfSettings.rfSettingsValues.gdo2_inv) {
-    Serial.println("GDO2 inverted output");  
-  }
 }
 
 // Write values to on-chip transfer buffer

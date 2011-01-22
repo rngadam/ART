@@ -3,11 +3,11 @@
 
 #include "cc1100_rf.h"
 
-union settings_u {
+typedef union settings_u {
   RF_SETTINGS rfSettings;
-  BYTE registers[ADDR_TEST0+1];
+  byte registers[ADDR_TEST0+1];
   RF_SETTINGS_VALUES rfSettingsValues;
-};
+} settings_t;
 
 // Deviation = 5.157471 
 // Base frequency = 433.999969 
@@ -32,7 +32,7 @@ union settings_u {
 // CRC autoflush = false 
 // PA ramping = false 
 // TX power = 0 
-settings_u rfSettings = {
+settings_t rfSettings = {
     0x29,  // IOCFG2              GDO2 Output Pin Configuration
     0x2E,  // IOCFG1              GDO1 Output Pin Configuration
     0x06,  // IOCFG0              GDO0 Output Pin Configuration
