@@ -6,6 +6,7 @@
 union settings_u {
   RF_SETTINGS rfSettings;
   BYTE registers[ADDR_TEST0+1];
+  RF_SETTINGS_VALUES rfSettingsValues;
 };
 
 // Deviation = 5.157471 
@@ -79,20 +80,6 @@ settings_u rfSettings = {
     0x81,  // TEST2               Various Test Settings
     0x35,  // TEST1               Various Test Settings
     0x09,  // TEST0               Various Test Settings
-    0x00,  // PARTNUM             Chip ID
-    0x04,  // VERSION             Chip ID
-    0x00,  // FREQEST             Frequency Offset Estimate from Demodulator
-    0x00,  // LQI                 Demodulator Estimate for Link Quality
-    0x00,  // RSSI                Received Signal Strength Indication
-    0x00,  // MARCSTATE           Main Radio Control State Machine State
-    0x00,  // WORTIME1            High Byte of WOR Time
-    0x00,  // WORTIME0            Low Byte of WOR Time
-    0x00,  // PKTSTATUS           Current GDOx Status and Packet Status
-    0x00,  // VCO_VC_DAC          Current Setting from PLL Calibration Module
-    0x00,  // TXBYTES             Underflow and Number of Bytes
-    0x00,  // RXBYTES             Overflow and Number of Bytes
-    0x00,  // RCCTRL1_STATUS      Last RC Oscillator Calibration Result
-    0x00,  // RCCTRL0_STATUS      Last RC Oscillator Calibration Result
 };
 
 const byte PA_TABLE[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0};   //10dBm

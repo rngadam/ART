@@ -86,10 +86,11 @@ void setup() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV4); // 16Mhz/4 = 4Mhz
   
+  outputConfig(rfSettings);
   powerUpReset();
   
   //Configure registers to match NetUSB
-  for(byte i=0; i<ADDR_TEST0+1; i++) {
+  for(byte i=0; i<ADDR_RCCTRL0+1; i++) {
     writeRegister(i, rfSettings.registers[i]);
   }
   
@@ -121,6 +122,14 @@ void loop() {
   delay(1000);
 }
 
+void outputConfig(const settings_u& rfSettings) {
+  if(rfSettings.rfSettingsValues.gdo2_cfg & CHP_RDY) {
+    Serial.println("GDO2 output CHP_RDY");
+  }
+  if(rfSettings.rfSettingsValues.gdo2_inv) {
+    Serial.println("GDO2 inverted output");  
+  }
+}
 
 // Write values to on-chip transfer buffer
 void sendPacket(const byte* buffer, byte len) {
