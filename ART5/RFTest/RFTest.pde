@@ -1,5 +1,5 @@
 #include <SPI.h>
-#include "cc1100.h"
+#include "cc1100_rf_settings.h"
 
 /* 
 
@@ -8,7 +8,8 @@ Reference http://klk64.com/arduino-spi/
 SPI (RF communication transceiver) uses these pins:
 
 http://www.arduino.cc/playground/Code/Spi
-      
+
+pin 9 -> to transceiver PAC (orange, pin 05)  
 pin 10	SS	SPI slave select ---> to transceiver CSn (white, pin 06)
 pin 11	MOSI	SPI master out, slave in ---> to transceiver SI (green, pin 30)
 pin 12	MISO	SPI master in, slave out ---> to transceiver SO (blue, 04)
@@ -29,6 +30,7 @@ Transceiver pinout (femelle header -> ribbon cable -> 32 pins IC):
 
 */
 
+const byte PAC_PIN = 9;
 const byte SS_PIN = 10;
 const byte MOSI_PIN = 11;
 const byte MISO_PIN = 12;
@@ -38,7 +40,9 @@ const byte TEMP_PIN = A0;
 void setup() {
   Serial.begin(9600);
   pinMode(SS_PIN, OUTPUT);
+  pinMode(PAC_PIN, OUTPUT);
   pinMode(TEMP_PIN, INPUT);
+  
 
   // start the SPI library:
   SPI.begin();
@@ -85,22 +89,18 @@ void setup() {
   powerUpReset();
   
   //Configure registers to match NetUSB
-  for(byte i=0;i<39; i++) {
-    writeRegister(i, cc1100regcfg[i]);
+  for(byte i=0; i<ADDR_TEST0+1; i++) {
+    writeRegister(i, rfSettings.registers[i]);
   }
-  writeRegister(ADDR_IOCFG0, 0x80); // enable temperature output on GDO0
-  idle();
   
-  // additional configuration
-  writeRegister(ADDR_FSTEST, FSTEST);
-  writeRegister(ADDR_TEST2, TEST2);
-  writeRegister(ADDR_TEST1, TEST1);
-  writeRegister(ADDR_TEST0, TEST0);
   // strobe configuration
   writeRegisterBurst(CCxxx0_PATABLE, PA_TABLE, 8);
-
+  
+  digitalWrite(PAC_PIN, LOW);
+  digitalWrite(PAC_PIN, HIGH);
   // give the device time to set up:
   delay(100);
+  idle();
 }
 
 enum desired_function {
@@ -121,11 +121,12 @@ void loop() {
   delay(1000);
 }
 
+
+// Write values to on-chip transfer buffer
 void sendPacket(const byte* buffer, byte len) {
   writeRegister(CCxxx0_TXFIFO, len);
   writeRegisterBurst(CCxxx0_TXFIFO, buffer, len);
-  strobe(CCxxx0_STX);
-  strobe(CCxxx0_SFTX);
+  strobe(CCxxx0_STX); // go to transfer mode
 }
 
 // see state diagram pg 48
@@ -138,7 +139,7 @@ byte outputState() {
 
 byte outputTemperature() {
   int value = analogRead(TEMP_PIN);
-  int millivolts = map(value, 0, 1023, 0, 5000);
+  int millivolts = map(value, 0, 1023, 0, 5000); // analog read is 10-bit value for range 0-5V
   int temperature = map(millivolts, 747, 847, 0, 40); // SWRS061F pg 18
   Serial.print("millivolts:");
   Serial.println(millivolts);
