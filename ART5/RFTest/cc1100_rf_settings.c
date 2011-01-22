@@ -28,6 +28,7 @@ void outputConfig(const settings_t& rfSettings) {
   if(rfSettings.rfSettingsValues.gdo2_inv) {
     printf("GDO2 inverted output\n");  
   }
+  printf("GDO0 temperature output = %s\n", rfSettings.rfSettingsValues.temp_sensor_enable?"true":"false");
 // Base frequency = 433.999969 
 // Carrier frequency = 433.999969 
 // Channel number = 0 

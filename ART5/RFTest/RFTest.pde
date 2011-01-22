@@ -34,7 +34,7 @@ pin 12	MISO	SPI master in, slave out ---> to transceiver SO (blue, 04)
 pin 13	SCK	SPI clock ---> to transceiver SLCK  (yellow, 29)
 pin A0 -> to transceiver GD0 (orange, 27)
 
-Transceiver pinout (femelle header -> ribbon cable -> 32 pins IC):
+Transceiver pinout (femelle header -> ribbon cable -> 32 pins IC. Red line is #1):
 
 01)5V    32)GND
 02)5V    31)GND
@@ -127,16 +127,30 @@ void setup() {
 }
 
 enum desired_function {
+  INIT_TEMPERATURE,
   TEMPERATURE,
 };
 
-int desired_function = TEMPERATURE;
+byte desired_function = INIT_TEMPERATURE;
 
 void loop() {
   switch(desired_function) {
+    case INIT_TEMPERATURE:
+      rfSettings.rfSettings.iocfg0 = 0;
+      rfSettings.rfSettingsValues.temp_sensor_enable = 1;
+      writeRegister(ADDR_IOCFG0, rfSettings.rfSettings.iocfg0);    
+      desired_function = TEMPERATURE;
+      break;
     case TEMPERATURE:
-      outputState();
+      if(outputState() == 1) {
+        // necessary in the idle state to get temperature output
+        writeRegister(ADDR_PTEST, 0xBF); 
+      }
       byte temperature = outputTemperature();
+      if(outputState() == 1) {
+        // we're leaving the idle state
+        writeRegister(ADDR_PTEST, 0x7F); 
+      }
       sendPacket(&temperature, 1);
       outputState();
       break;
@@ -151,11 +165,85 @@ void sendPacket(const byte* buffer, byte len) {
   strobe(CCxxx0_STX); // go to transfer mode
 }
 
-// see state diagram pg 48
+// see state diagram from SWRS061F pg 48
 byte outputState() {
   int state = readState();
   Serial.print("state: ");
-  Serial.println(state & 0xF);
+  // state names from SWRS061F page 91
+  switch(state & 0xF) {
+    case 0:
+      Serial.println("SLEEP (ERROR)");
+      break;
+    case 1:
+      Serial.println("IDLE");
+      break;
+    case 2:
+      Serial.println("XOFF (ERROR)");
+      break;
+    case 3:
+      Serial.println("VCOON_MC");
+      break;
+    case 4:
+      Serial.println("REGON_MC");
+      break;
+    case 5:
+      Serial.println("MANCAL");
+      break;
+    case 6:
+      Serial.println("VCOON");
+      break;
+    case 7:
+      Serial.println("REGON");
+      break;
+    case 8:
+      Serial.println("STARTCAL");
+      break;
+    case 9:
+      Serial.println("BWBOOST");
+      break;
+    case 10:
+      Serial.println("FS_LOCK");
+      break;
+    case 11:
+      Serial.println("IFADCON");
+      break;
+    case 12:
+      Serial.println("ENDCAL");
+      break;
+    case 13:
+      Serial.println("RX");
+      break;
+    case 14:
+      Serial.println("RX_END");
+      break;
+    case 15:
+      Serial.println("RX_RST");
+      break;
+    case 16:
+      Serial.println("TXRX_SWITCH");
+      break;
+    case 17:
+      Serial.println("RXFIFO_OVERFLOW");
+      break;
+    case 18:
+      Serial.println("FSTXON");
+      break;
+    case 19:
+      Serial.println("TX");
+      break;
+    case 20:
+      Serial.println("TX_END");
+      break;
+    case 21:
+      Serial.println("RXTX_SWITCH");
+      break;
+    case 22:
+      Serial.println("TXFIFO_UNDERFLOW");
+      break;
+    default:
+      Serial.println("UNKNOWN (ERROR)");
+      break;
+  }
   return state;
 }
 
@@ -188,7 +276,6 @@ void reset() {
 void idle() {
   // go to idle
   strobe(CCxxx0_SIDLE);
-  writeRegister(ADDR_PTEST, 0xBF); // necessary in the idle state to get temperature output
 }
 
 void writeRegister(byte thisRegister, byte thisValue) {
