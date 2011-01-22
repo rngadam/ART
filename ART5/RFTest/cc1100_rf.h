@@ -1,3 +1,20 @@
+/*****************************************************************************
+ * Define register orders, constants, bitfields definition
+ * 
+ * Copyright 2011 Ricky Ng-Adam
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
 #ifndef cc1100_rf_h
 #define cc1100_rf_h
 
@@ -248,4 +265,11 @@ typedef struct {
     unsigned test0_2:6;
     // from partnum, these are all read-only registers
 } RF_SETTINGS_VALUES;
+
+typedef union settings_u {
+  RF_SETTINGS rfSettings;
+  byte registers[ADDR_TEST0+1];
+  RF_SETTINGS_VALUES rfSettingsValues;
+} settings_t;
+
 #endif
