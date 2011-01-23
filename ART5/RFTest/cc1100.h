@@ -106,7 +106,7 @@
 #define CCxxx0_RXFIFO       0x3F 
 
 #define         WRITE_BURST         0x40		
-#define 	READ_SINGLE         0x80		
+#define 	READ_SINGLE         0x80 // 1000 0000	
 #define 	READ_BURST          0xC0		
 #define 	BYTES_IN_RXFIFO     0x7F  		
 #define 	CRC_OK              0x80 

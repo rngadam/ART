@@ -113,12 +113,7 @@ void setup() {
   
   powerUpReset();
 
-  writeConfig(rfSettings, PA_TABLE);
-  
-  digitalWrite(PAC_PIN, LOW);
-  digitalWrite(PAC_PIN, HIGH);
-  // give the device time to set up:
-  delay(100);
+  writeConfig(rfSettings, PA_TABLE);  
 }
 
 enum desired_function {
@@ -143,6 +138,7 @@ const byte TX_BUF[TX_BUF_LEN]=
 byte rx_buff[64];
 
 void writeConfig(const settings_t& settings, const byte* pa_table) {
+  idle();
   //write registers
   for(byte i=0; i<ADDR_RCCTRL0+1; i++) {
     writeRegister(i, settings.registers[i]);
@@ -155,6 +151,10 @@ void writeConfig(const settings_t& settings, const byte* pa_table) {
   
   // strobe configuration
   writeRegisterBurst(CCxxx0_PATABLE, pa_table, 8);
+
+  digitalWrite(PAC_PIN, LOW);
+  digitalWrite(PAC_PIN, HIGH);
+  
 }
 
 void init_sniffer(settings_t& settings) {
@@ -181,9 +181,9 @@ void init_sniffer(settings_t& settings) {
 void loop() {
   switch(desired_function) {
     case INIT_SNIFFER:
-      strobe(CCxxx0_SRX);
       init_sniffer(rfSettings);
       writeConfig(rfSettings, PA_TABLE);
+      strobe(CCxxx0_SRX);
       desired_function = SNIFFER;
       break;
     case SNIFFER:
@@ -192,15 +192,20 @@ void loop() {
       outputPacketStatus();
       outputState();
       byte waiting = outputFifoStatus();
-      readRegisterBurst(CCxxx0_RXFIFO, rx_buff, waiting);  
-      Serial.print("data: ");
-      for(byte i=0; i<waiting; i++) {
-        Serial.print(rx_buff[i], BIN);
-        Serial.print(" ");
-        //outputFifoStatus();
+      if(waiting > 0) {
+        byte packet_len = readRegister(CCxxx0_RXFIFO);
+        if(packet_len>0) {
+          readRegisterBurst(CCxxx0_RXFIFO, rx_buff, packet_len);  
+          Serial.print("data ");
+          Serial.print(packet_len, DEC);
+          for(byte i=0; i<packet_len; i++) {
+            Serial.print(" ");
+            Serial.print(rx_buff[i], DEC);
+          }
+          Serial.println("");
+        }
       }
-      Serial.println("");
-      strobe(CCxxx0_SFRX);
+      Serial.println(strobe(CCxxx0_SFRX), DEC);
       break;     
       }
     case INIT_CONTINUOUS_SEND:
@@ -277,14 +282,14 @@ struct {
 } pktstatus_t;
 
 void outputSignalStatus() {
-  byte rssi = readRegister(CCxxx0_RSSI);
+  byte rssi = readRegisterStatus(CCxxx0_RSSI);
   Serial.print("RSSI:");
   Serial.println(rssi, DEC);
 }
 
 void outputPacketStatus() {
   pktstatus_t pktstatus;
-  pktstatus.value = readRegister(CCxxx0_PKTSTATUS);
+  pktstatus.value = readRegisterStatus(CCxxx0_PKTSTATUS);
   Serial.print("GDO0:");
   Serial.print(pktstatus.GDO0);
   Serial.print(" GDO2:");
@@ -312,14 +317,14 @@ typedef union {
 byte outputFifoStatus() {
   rxtxbytes_t xbytes;
   
-  xbytes.value = readRegister(CCxxx0_TXBYTES);
+  xbytes.value = readRegisterStatus(CCxxx0_TXBYTES);
   Serial.print("txbytes:");
   Serial.print(xbytes.bytes_num, DEC);   
   if(xbytes.overflow) {
     Serial.print("(overflow)");
   }
 
-  xbytes.value = readRegister(CCxxx0_RXBYTES);
+  xbytes.value = readRegisterStatus(CCxxx0_RXBYTES);
   Serial.print(" rxbytes: ");
   Serial.print(xbytes.bytes_num, DEC);
   if(xbytes.overflow) {
@@ -342,7 +347,9 @@ void sendPacket(const byte* buffer, byte len) {
 // see state diagram from SWRS061F pg 48
 byte outputState() {
   byte state = readState();
-  Serial.print("state: ");
+  Serial.print("state:");
+  Serial.print(state, DEC);
+  Serial.print(": ");
   // state names from SWRS061F page 91
   switch(state & 0xF) {
     case 0:
@@ -468,12 +475,18 @@ void writeRegisterBurst(byte thisRegister, const byte* thisValue, byte count) {
   digitalWrite(SS_PIN, HIGH);
 }
 
-void strobe(byte thisRegister) {
+// Strobe registers are accessed by register address OR register address | READ_SINGLE
+// see page 68
+byte strobe(byte thisRegister) {
   digitalWrite(SS_PIN, LOW);
-  SPI.transfer(thisRegister); //Send register location
+  byte state = SPI.transfer(thisRegister); //Send register location
   digitalWrite(SS_PIN, HIGH);
+  return state;
 }
 
+// Status register are accessed by register address | READ_BURST
+// Multibytes are read by consecutive transfers
+// see page 68
 byte readRegister(byte thisRegister) {
   byte result = 0;
   digitalWrite(SS_PIN, LOW);
@@ -483,6 +496,22 @@ byte readRegister(byte thisRegister) {
   return result;
 }
 
+// Status register are accessed by register address | READ_BURST
+// see page 68
+byte readRegisterStatus(byte thisRegister) {
+  byte result = 0;
+  digitalWrite(SS_PIN, LOW);
+  
+  SPI.transfer(thisRegister|READ_BURST); //Send register location + single read
+
+  result = SPI.transfer(0x00);
+  digitalWrite(SS_PIN, HIGH);  
+  return result;
+}
+
+// Status register are accessed by register address | READ_BURST
+// Multibytes are read by consecutive transfers
+// see page 68
 void readRegisterBurst(byte thisRegister, byte* buffer, byte len) {
   byte result = 0;
   digitalWrite(SS_PIN, LOW);
