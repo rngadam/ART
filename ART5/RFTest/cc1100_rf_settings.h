@@ -259,6 +259,8 @@ void make_compatible(settings_t& rfSettingsA, const settings_t& rfSettingsB) {
   rfSettingsA.values.freq_high = rfSettingsB.values.freq_high ;
   rfSettingsA.values.freq_middle = rfSettingsB.values.freq_middle; 
   rfSettingsA.values.freq_low = rfSettingsB.values.freq_low; 
+  rfSettingsA.values.device_addr = rfSettingsB.values.device_addr;   
+  rfSettingsA.values.adr_chk = rfSettingsB.values.adr_chk;     
 }
   
 #endif

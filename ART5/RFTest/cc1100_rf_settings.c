@@ -432,6 +432,8 @@ int main(void) {
    make_compatible(rfSettings, rfSettings_netusb);
    printf("Comparing RFC1100A and NetUSB after conversion------------------------------------\n");
    compare(rfSettings, rfSettings_netusb);
+   printf("Final------------------------------------\n");
+   outputConfig(rfSettings, 26000);
 
 }
 #endif

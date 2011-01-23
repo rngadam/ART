@@ -172,6 +172,9 @@ void loop() {
       outputState();
       break;
     case INIT_CONTINUOUS_RECV:
+      outputFifoStatus();
+      outputSignalStatus();
+      outputPacketStatus();
       strobe(CCxxx0_SFRX);
       strobe(CCxxx0_SRX);
       desired_function = CONTINUOUS_RECV;
@@ -179,6 +182,8 @@ void loop() {
     case CONTINUOUS_RECV:
       strobe(CCxxx0_SFRX);
       outputFifoStatus();
+      outputSignalStatus();
+      outputPacketStatus();
       outputState();
       break;  
     case INIT_TEMPERATURE:
@@ -204,19 +209,69 @@ void loop() {
   delay(1000);
 }
 
+typedef union {
+  byte value;
+struct {
+  unsigned GDO0:1;
+  unsigned unused:1;
+  unsigned GDO2:1;
+  unsigned SFD:1;
+  unsigned CCA:1;
+  unsigned PQT_REACHED:1;
+  unsigned CS:1;
+  unsigned LAST_CRC_OK:1;
+};
+} pktstatus_t;
+
+void outputSignalStatus() {
+  byte rssi = readRegister(CCxxx0_RSSI);
+  Serial.print("RSSI:");
+  Serial.println(rssi, DEC);
+}
+
+void outputPacketStatus() {
+  pktstatus_t pktstatus;
+  pktstatus.value = readRegister(CCxxx0_PKTSTATUS);
+  Serial.print("GDO0:");
+  Serial.print(pktstatus.GDO0);
+  Serial.print(" GDO2:");
+  Serial.print(pktstatus.GDO2);
+  Serial.print(" SFD:");
+  Serial.print(pktstatus.SFD);
+  Serial.print(" CCA:");
+  Serial.print(pktstatus.CCA);
+  Serial.print(" PQT_REACHED:");
+  Serial.print(pktstatus.PQT_REACHED);
+  Serial.print(" CS:");
+  Serial.print(pktstatus.CS);
+  Serial.print(" CRC_OK:");
+  Serial.println(pktstatus.LAST_CRC_OK);
+}
+
+typedef union {
+  byte value;
+  struct {
+    unsigned bytes_num:7;
+    unsigned overflow:1;
+  };
+} rxtxbytes_t;
+
 void outputFifoStatus() {
-      byte rxbytes = readRegister(CCxxx0_RXBYTES);
-      byte txbytes = readRegister(CCxxx0_TXBYTES);
-      Serial.print("rxbytes = ");
-      if(rxbytes & 128) {
-        Serial.print("overflow ");
-      }
-      Serial.println(rxbytes & 127);
-      if(txbytes & 128) {
-        Serial.print("overflow ");
-      }
-      Serial.print("txbytes = ");
-      Serial.println(txbytes & 127);   
+  rxtxbytes_t xbytes;
+  
+  xbytes.value = readRegister(CCxxx0_RXBYTES);
+  Serial.print("rxbytes = ");
+  if(xbytes.overflow) {
+    Serial.print("overflow ");
+  }
+  Serial.println(xbytes.bytes_num, DEC);
+  
+  xbytes.value = readRegister(CCxxx0_TXBYTES);
+  if(xbytes.overflow) {
+    Serial.print("overflow ");
+  }
+  Serial.print("txbytes = ");
+  Serial.println(xbytes.bytes_num, DEC);   
 }
 
 // Write values to on-chip transfer buffer
@@ -365,7 +420,7 @@ void strobe(byte thisRegister) {
 }
 
 byte readRegister(byte thisRegister) {
-  byte result;
+  byte result = 0;
   digitalWrite(SS_PIN, LOW);
   SPI.transfer(thisRegister|READ_SINGLE); //Send register location + single read
   result = SPI.transfer(0x00);
