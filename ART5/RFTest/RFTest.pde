@@ -113,18 +113,7 @@ void setup() {
   
   powerUpReset();
 
-  //write registers
-  for(byte i=0; i<ADDR_RCCTRL0+1; i++) {
-    writeRegister(i, rfSettings.registers[i]);
-  }
-  // skip a few registers we're not supposed to write to
-  writeRegister(ADDR_PTEST, rfSettings.rfSettings.ptest);
-  writeRegister(ADDR_TEST2, rfSettings.rfSettings.test2);
-  writeRegister(ADDR_TEST1, rfSettings.rfSettings.test1);
-  writeRegister(ADDR_TEST0, rfSettings.rfSettings.test0);
-  
-  // strobe configuration
-  writeRegisterBurst(CCxxx0_PATABLE, PA_TABLE, 8);
+  writeConfig(rfSettings, PA_TABLE);
   
   digitalWrite(PAC_PIN, LOW);
   digitalWrite(PAC_PIN, HIGH);
@@ -139,17 +128,81 @@ enum desired_function {
   CONTINUOUS_SEND,
   INIT_CONTINUOUS_RECV,
   CONTINUOUS_RECV,
+  INIT_SNIFFER,
+  SNIFFER, 
 };
 
-byte desired_function = INIT_CONTINUOUS_RECV;
+byte desired_function = INIT_SNIFFER;
+
 const byte TX_BUF_LEN = 33;
 const byte TX_BUF[TX_BUF_LEN]=
     { 0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,
       0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28, 0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39
     };	 
+    
+byte rx_buff[64];
+
+void writeConfig(const settings_t& settings, const byte* pa_table) {
+  //write registers
+  for(byte i=0; i<ADDR_RCCTRL0+1; i++) {
+    writeRegister(i, settings.registers[i]);
+  }
+  // skip a few registers we're not supposed to write to
+  writeRegister(ADDR_PTEST, settings.rfSettings.ptest);
+  writeRegister(ADDR_TEST2, settings.rfSettings.test2);
+  writeRegister(ADDR_TEST1, settings.rfSettings.test1);
+  writeRegister(ADDR_TEST0, settings.rfSettings.test0);
+  
+  // strobe configuration
+  writeRegisterBurst(CCxxx0_PATABLE, pa_table, 8);
+}
+
+void init_sniffer(settings_t& settings) {
+  // disable address filtering
+  settings.values.adr_chk = 0;
+  // disable CRC filtering
+  settings.values.crc_autoflush = 0;
+  // disable forward error correction
+  settings.values.fec_en = 0;
+  // disable preamble/sync
+  settings.values.sync_mode = 0;
+  // disable appending status
+  settings.values.append_status = 0;
+  // disable CRC calculation
+  settings.values.crc_en = 0;
+  // infinite packet length mode
+  settings.values.length_config = 2;
+  // broadcast
+  settings.values.device_addr = 0;
+  // stay in rx
+  settings.values.rxoff_mode = 3; 
+}
 
 void loop() {
   switch(desired_function) {
+    case INIT_SNIFFER:
+      strobe(CCxxx0_SRX);
+      init_sniffer(rfSettings);
+      writeConfig(rfSettings, PA_TABLE);
+      desired_function = SNIFFER;
+      break;
+    case SNIFFER:
+      {
+      outputSignalStatus();
+      outputPacketStatus();
+      outputState();
+      byte waiting = outputFifoStatus();
+      readRegisterBurst(CCxxx0_RXFIFO, rx_buff, waiting);  
+      Serial.print("data: ");
+      for(byte i=0; i<waiting; i++) {
+        Serial.print(rx_buff[i], BIN);
+        Serial.print(" ");
+        //outputFifoStatus();
+      }
+      Serial.println("");
+      strobe(CCxxx0_SFRX);
+      break;     
+      }
     case INIT_CONTINUOUS_SEND:
       strobe(CCxxx0_SFSTXON);
       desired_function = CONTINUOUS_SEND;
@@ -256,22 +309,24 @@ typedef union {
   };
 } rxtxbytes_t;
 
-void outputFifoStatus() {
+byte outputFifoStatus() {
   rxtxbytes_t xbytes;
   
-  xbytes.value = readRegister(CCxxx0_RXBYTES);
-  Serial.print("rxbytes = ");
-  if(xbytes.overflow) {
-    Serial.print("overflow ");
-  }
-  Serial.println(xbytes.bytes_num, DEC);
-  
   xbytes.value = readRegister(CCxxx0_TXBYTES);
+  Serial.print("txbytes:");
+  Serial.print(xbytes.bytes_num, DEC);   
   if(xbytes.overflow) {
-    Serial.print("overflow ");
+    Serial.print("(overflow)");
   }
-  Serial.print("txbytes = ");
-  Serial.println(xbytes.bytes_num, DEC);   
+
+  xbytes.value = readRegister(CCxxx0_RXBYTES);
+  Serial.print(" rxbytes: ");
+  Serial.print(xbytes.bytes_num, DEC);
+  if(xbytes.overflow) {
+    Serial.print("(overflow)");
+  }
+  Serial.println("");
+  return xbytes.bytes_num;
 }
 
 // Write values to on-chip transfer buffer
@@ -286,7 +341,7 @@ void sendPacket(const byte* buffer, byte len) {
 
 // see state diagram from SWRS061F pg 48
 byte outputState() {
-  int state = readState();
+  byte state = readState();
   Serial.print("state: ");
   // state names from SWRS061F page 91
   switch(state & 0xF) {
@@ -426,6 +481,16 @@ byte readRegister(byte thisRegister) {
   result = SPI.transfer(0x00);
   digitalWrite(SS_PIN, HIGH);  
   return result;
+}
+
+void readRegisterBurst(byte thisRegister, byte* buffer, byte len) {
+  byte result = 0;
+  digitalWrite(SS_PIN, LOW);
+  SPI.transfer(thisRegister|READ_BURST); //Send register location + single read with burst bit
+  for(int i=0; i<len; i++) {
+    buffer[i] = SPI.transfer(0x00);
+  }
+  digitalWrite(SS_PIN, HIGH);  
 }
 
 byte readState() {

@@ -244,6 +244,7 @@ settings_t rfSettingsDefaults = {
     0x31,  // TEST1               Various Test Settings
     0x0B,  // TEST0               Various Test Settings
 };
+
 const byte PA_TABLE[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0};   //10dBm
 
 settings_t& rfSettings = rfSettings3;
