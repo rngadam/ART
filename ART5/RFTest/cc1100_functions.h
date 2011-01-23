@@ -4,7 +4,7 @@
 #include "cc1100_rf_settings.h"
 
 char* state_names[] = {
-  "SLEEP (ERROR)",
+  "SLEEP (ERROR)", 
   "IDLE",
   "XOFF (ERROR)",
   "VCOON_MC",
@@ -27,6 +27,32 @@ char* state_names[] = {
   "TX_END",
   "RXTX_SWITCH",
   "TXFIFO_UNDERFLOW"
+};
+
+enum states {
+  SLEEP, 
+  IDLE,
+  XOFF,
+  VCOON_MC,
+  REGON_MC,
+  MANCAL,
+  VCOON,
+  REGON,
+  STARTCAL,
+  BWBOOST,
+  FS_LOCK,
+  IFADCON,
+  ENDCAL,
+  RX,
+  RX_END,
+  RX_RST,
+  TXRX_SWITCH,
+  RXFIFO_OVERFLOW,
+  FSTXON,
+  TX,
+  TX_END,
+  RXTX_SWITCH,
+  TXFIFO_UNDERFLOW  
 };
 
 const char* getStateName(const byte state) {
@@ -128,6 +154,17 @@ void reset() {
 void idle() {
   // go to idle
   strobe(CCxxx0_SIDLE);
+  do {
+    delay(100);
+  } while(readState() != IDLE);
+}
+
+void rx() {
+  // go to idle
+  strobe(CCxxx0_SRX);
+  do {
+    delay(100);
+  } while(readState() != RX);
 }
 
 void powerUpReset() {

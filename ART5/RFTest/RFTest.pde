@@ -128,7 +128,7 @@ enum desired_function {
   WAITING_PACKET_END,
 };
 
-byte desired_function = INIT_CONTINUOUS_RECV;
+byte desired_function = INIT_SNIFFER;
 byte substate = 0;
 byte current_chan = 0;
 
@@ -200,7 +200,7 @@ byte outputTemperature() {
   int value = analogRead(GDO0_PIN);
   int millivolts = map(value, 0, 1023, 0, 5000); // analog read is 10-bit value for range 0-5V
   int temperature = map(millivolts, 747, 847, 0, 40); // SWRS061F pg 18
-  Serial.print("millivolts:");
+  Serial.print("mV:");
   Serial.println(millivolts);
   Serial.print("temp: ");
   Serial.println(temperature);
@@ -231,6 +231,9 @@ void init_sniffer(settings_t& settings) {
   writeConfig(settings, PA_TABLE);
 }
 
+int last_millis = 0;
+boolean update = true;
+
 void loop() {
   switch(desired_function) {
     case INIT_SNIFFER:
@@ -239,11 +242,15 @@ void loop() {
       strobe(CCxxx0_SRX);
       desired_function = SNIFFER;
       current_chan = 0;
+      update = false;
       break;
     case SNIFFER:
     {
-      byte waiting = outputFifoStatus();
-      if(waiting > 0) {
+      if(readRegisterStatus(CCxxx0_RXBYTES)) {
+        update = true;
+        outputFifoStatus();
+        Serial.print("CHANNEL ");
+        Serial.println(current_chan, DEC);
         byte packet_len = readRegister(CCxxx0_RXFIFO);
         if(packet_len>0) {
           readRegisterBurst(CCxxx0_RXFIFO, rx_buff, packet_len);  
@@ -257,11 +264,9 @@ void loop() {
         }
       } else {
         current_chan++;
-        Serial.print("CHANNEL ");
-        Serial.println(current_chan, DEC);
         idle();
         writeRegister(ADDR_CHANNR, current_chan);
-        strobe(CCxxx0_SRX);       
+        rx();
       }
       break;     
     }
@@ -327,35 +332,43 @@ void loop() {
   if (Serial.available() > 0) {
     byte inByte = Serial.read();
     switch(inByte) {
-      case '0':
+      case 't':
         Serial.println("Temperature mode");
         desired_function = INIT_TEMPERATURE;
         break;
-      case '1':
+      case 'r':
         Serial.println("recv mode");
         desired_function = INIT_CONTINUOUS_RECV;
         break;
-      case '2':
+      case 's':
         Serial.println("send mode");
         desired_function = INIT_CONTINUOUS_SEND;
         break;
-      case '3':
+      case 'f':
         Serial.println("sniffer mode");
         desired_function = INIT_SNIFFER;
         break;
+      case 'o':
+        update = true;
+        break;
       default:
-        Serial.println("0 Temperature");
-        Serial.println("1 Receive");
-        Serial.println("2 Send");
-        Serial.println("3 Sniffer");
+        Serial.println("t Temperature");
+        Serial.println("r Receive");
+        Serial.println("s Send");
+        Serial.println("f Sniffer");
         break;
     }
   } else {
-    outputSignalStatus();
-    outputPacketStatus();
-    outputState();
+    if((last_millis - millis()) > 1000 && update) {
+      update = false;
+      last_millis = millis();
+      outputSignalStatus();
+      outputPacketStatus();
+      outputState();
+      Serial.print("CHANNEL ");
+      Serial.println(current_chan, DEC);      
+    }
   }
-  delay(1000);
 }
 
 
