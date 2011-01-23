@@ -263,8 +263,13 @@ void outputConfig(const settings_t& rfSettings, unsigned int xosc_khz) {
   }
   // Channel spacing = 199.951172 
   // Carrier frequency = 433.999969
-  unsigned int frequency = rfSettings.values.freq_high<<16 | rfSettings.values.freq_middle<<8 | rfSettings.values.freq_low;
-  double carrier = (xosc_khz*1000)/2^16*(frequency + rfSettings.values.chan * ((256 + rfSettings.values.chanspc_m)*2^(rfSettings.values.chanspc_e-2)));
+  // see Frequency Programming, page 55
+  printf("%d %d %d\n", rfSettings.values.freq_high, rfSettings.values.freq_middle, rfSettings.values.freq_low);
+  unsigned long frequency = 0;
+  frequency |= rfSettings.values.freq_high<<16 | rfSettings.values.freq_middle<<8 | rfSettings.values.freq_low;
+  frequency = frequency * ((xosc_khz*1000)/2^16);
+  printf("Starting frequency %lld\n", frequency);
+  double carrier = ((xosc_khz*1000)/2^16)*(frequency + rfSettings.values.chan * ((256 + rfSettings.values.chanspc_m)*(2^(rfSettings.values.chanspc_e-2))));
   printf("Carrier frequency %f\n", carrier);
   double preferred_if = ((xosc_khz*1000)/2^10)*rfSettings.values.freq_if;
   printf("Preferred frequency %f\n", preferred_if);
@@ -412,7 +417,7 @@ int main(void) {
    outputConfig(rfSettings3, 26000);
    printf("Defaults------------------------------------\n");
    outputConfig(rfSettings3, 26000);
-   printf("Comparing NetUSB and RFC1100A");
+   printf("Comparing NetUSB and RFC1100A\n");
    compare(rfSettings2, rfSettings3);
 
 }
