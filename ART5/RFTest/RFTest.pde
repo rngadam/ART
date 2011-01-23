@@ -27,6 +27,7 @@ SPI (RF communication transceiver) uses these pins:
 
 http://www.arduino.cc/playground/Code/Spi
 
+pin 8 -> to transceiver GDO2 (yellow, pin 28)
 pin 9 -> to transceiver PAC (orange, pin 05)  
 pin 10	SS	SPI slave select ---> to transceiver CSn (white, pin 06)
 pin 11	MOSI	SPI master out, slave in ---> to transceiver SI (green, pin 30)
@@ -48,19 +49,22 @@ Transceiver pinout (femelle header -> ribbon cable -> 32 pins IC. Red line is #1
 
 */
 
+const byte GDO2_PIN = 8;
 const byte PAC_PIN = 9;
 const byte SS_PIN = 10;
 const byte MOSI_PIN = 11;
 const byte MISO_PIN = 12;
 const byte SCK_PIN = 13;
-const byte TEMP_PIN = A0;
+const byte GDO0_PIN = A0;
+
+settings_t& rfSettings = rfSettings3;
 
 void setup() {
   Serial.begin(9600);
   pinMode(SS_PIN, OUTPUT);
   pinMode(PAC_PIN, OUTPUT);
-  pinMode(TEMP_PIN, INPUT);
-  
+  pinMode(GDO0_PIN, INPUT);
+  pinMode(GDO2_PIN, INPUT);
 
   // start the SPI library:
   SPI.begin();
@@ -107,6 +111,15 @@ void setup() {
   powerUpReset();
   
   //Configure registers to match NetUSB
+  rfSettings.rfSettingsValues.chan = rfSettings2.rfSettingsValues.chan;
+  rfSettings.rfSettingsValues.mod_format = rfSettings2.rfSettingsValues.mod_format;
+  rfSettings.rfSettingsValues.length_config = rfSettings2.rfSettingsValues.length_config;
+  rfSettings.rfSettingsValues.packet_length = rfSettings2.rfSettingsValues.packet_length;
+  
+  // use GDO2 instead of GD00
+  rfSettings.rfSettings.iocfg2 =  rfSettings.rfSettings.iocfg0;
+  
+  //write registers
   for(byte i=0; i<ADDR_RCCTRL0+1; i++) {
     writeRegister(i, rfSettings.registers[i]);
   }
@@ -123,18 +136,45 @@ void setup() {
   digitalWrite(PAC_PIN, HIGH);
   // give the device time to set up:
   delay(100);
-  idle();
 }
 
 enum desired_function {
   INIT_TEMPERATURE,
   TEMPERATURE,
+  INIT_CONTINUOUS_SEND,
+  CONTINUOUS_SEND,
 };
 
-byte desired_function = INIT_TEMPERATURE;
+byte desired_function = INIT_CONTINUOUS_SEND;
+const byte TX_BUF_LEN = 33;
+const byte TX_BUF[TX_BUF_LEN]=
+    { 0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,
+      0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28, 0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39
+    };	 
 
 void loop() {
   switch(desired_function) {
+    case INIT_CONTINUOUS_SEND:
+      strobe(CCxxx0_SFSTXON);
+      desired_function = CONTINUOUS_SEND;
+      break;
+    case CONTINUOUS_SEND:
+      writeRegister(CCxxx0_TXFIFO, TX_BUF_LEN);
+      writeRegisterBurst(CCxxx0_TXFIFO, TX_BUF, TX_BUF_LEN);
+      strobe(CCxxx0_STX);
+      while(!digitalRead(GDO2_PIN)) {
+        Serial.println("Waiting for sync word...");
+        outputState();
+        delay(1000);
+      }
+     while(digitalRead(GDO2_PIN)) {
+        Serial.println("Waiting for packet end...");
+        outputState();
+        delay(1000);
+      }     
+      strobe(CCxxx0_SFTX);
+      outputState();
+      break;
     case INIT_TEMPERATURE:
       rfSettings.rfSettings.iocfg0 = 0;
       rfSettings.rfSettingsValues.temp_sensor_enable = 1;
@@ -153,7 +193,7 @@ void loop() {
       }
       sendPacket(&temperature, 1);
       outputState();
-      break;
+      break;  
   }
   delay(1000);
 }
@@ -163,6 +203,9 @@ void sendPacket(const byte* buffer, byte len) {
   writeRegister(CCxxx0_TXFIFO, len);
   writeRegisterBurst(CCxxx0_TXFIFO, buffer, len);
   strobe(CCxxx0_STX); // go to transfer mode
+  while(outputState() != 20) {
+    delay(1000);
+  }
 }
 
 // see state diagram from SWRS061F pg 48
@@ -248,7 +291,7 @@ byte outputState() {
 }
 
 byte outputTemperature() {
-  int value = analogRead(TEMP_PIN);
+  int value = analogRead(GDO0_PIN);
   int millivolts = map(value, 0, 1023, 0, 5000); // analog read is 10-bit value for range 0-5V
   int temperature = map(millivolts, 747, 847, 0, 40); // SWRS061F pg 18
   Serial.print("millivolts:");

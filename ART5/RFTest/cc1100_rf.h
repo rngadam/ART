@@ -269,7 +269,7 @@ typedef struct {
 typedef union settings_u {
   RF_SETTINGS rfSettings;
   byte registers[ADDR_TEST0+1];
-  RF_SETTINGS_VALUES rfSettingsValues;
+  RF_SETTINGS_VALUES values;
 } settings_t;
 
 #endif
