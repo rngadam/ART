@@ -18,7 +18,7 @@
 #ifndef ARDUINO
 #include <stdio.h>
 #include <math.h>
-typedef unsigned char byte;
+
 
 #include "cc1100_rf_settings.h"
 
@@ -418,9 +418,6 @@ void compare(const settings_t& rfSettingsA, const settings_t& rfSettingsB) {
 
 
 int main(void) {
-
-   printf("SmartRF studio sensitivity------------------------------------\n");
-   outputConfig(rfSettings1, 26000); 
    printf("NetUSB------------------------------------\n");
    outputConfig(rfSettings_netusb, 26000);
    printf("RFC1100A example------------------------------------\n");

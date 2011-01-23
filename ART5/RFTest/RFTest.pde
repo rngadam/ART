@@ -17,8 +17,8 @@
  *****************************************************************************/
 
 #include <SPI.h>
-#include "cc1100_rf_settings.h"
 
+#include "cc1100_rf_settings.h"
 /* 
 
 Reference http://klk64.com/arduino-spi/
@@ -46,7 +46,6 @@ Transceiver pinout (femelle header -> ribbon cable -> 32 pins IC. Red line is #1
 07)NC    26)NC
 08)NC    25)NC
 09)GND   24)GND
-
 */
 
 const byte GDO2_PIN = 8;
@@ -56,6 +55,8 @@ const byte MOSI_PIN = 11;
 const byte MISO_PIN = 12;
 const byte SCK_PIN = 13;
 const byte GDO0_PIN = A0;
+
+#include "cc1100_functions.h"
 
 void setup() {
   Serial.begin(9600);
@@ -112,8 +113,6 @@ void setup() {
   rfSettings.rfSettings.iocfg2 =  rfSettings.rfSettings.iocfg0;
   
   powerUpReset();
-
-  writeConfig(rfSettings, PA_TABLE);  
 }
 
 enum desired_function {
@@ -125,9 +124,13 @@ enum desired_function {
   CONTINUOUS_RECV,
   INIT_SNIFFER,
   SNIFFER, 
+  WAITING_SYNC_WORD,
+  WAITING_PACKET_END,
 };
 
-byte desired_function = INIT_SNIFFER;
+byte desired_function = INIT_CONTINUOUS_RECV;
+byte substate = 0;
+byte current_chan = 0;
 
 const byte TX_BUF_LEN = 33;
 const byte TX_BUF[TX_BUF_LEN]=
@@ -136,150 +139,6 @@ const byte TX_BUF[TX_BUF_LEN]=
     };	 
     
 byte rx_buff[64];
-
-void writeConfig(const settings_t& settings, const byte* pa_table) {
-  idle();
-  //write registers
-  for(byte i=0; i<ADDR_RCCTRL0+1; i++) {
-    writeRegister(i, settings.registers[i]);
-  }
-  // skip a few registers we're not supposed to write to
-  writeRegister(ADDR_PTEST, settings.rfSettings.ptest);
-  writeRegister(ADDR_TEST2, settings.rfSettings.test2);
-  writeRegister(ADDR_TEST1, settings.rfSettings.test1);
-  writeRegister(ADDR_TEST0, settings.rfSettings.test0);
-  
-  // strobe configuration
-  writeRegisterBurst(CCxxx0_PATABLE, pa_table, 8);
-
-  digitalWrite(PAC_PIN, LOW);
-  digitalWrite(PAC_PIN, HIGH);
-  
-}
-
-void init_sniffer(settings_t& settings) {
-  // disable address filtering
-  settings.values.adr_chk = 0;
-  // disable CRC filtering
-  settings.values.crc_autoflush = 0;
-  // disable forward error correction
-  settings.values.fec_en = 0;
-  // disable preamble/sync
-  settings.values.sync_mode = 0;
-  // disable appending status
-  settings.values.append_status = 0;
-  // disable CRC calculation
-  settings.values.crc_en = 0;
-  // infinite packet length mode
-  settings.values.length_config = 2;
-  // broadcast
-  settings.values.device_addr = 0;
-  // stay in rx
-  settings.values.rxoff_mode = 3; 
-}
-
-void loop() {
-  switch(desired_function) {
-    case INIT_SNIFFER:
-      init_sniffer(rfSettings);
-      writeConfig(rfSettings, PA_TABLE);
-      strobe(CCxxx0_SRX);
-      desired_function = SNIFFER;
-      break;
-    case SNIFFER:
-      {
-      outputSignalStatus();
-      outputPacketStatus();
-      outputState();
-      byte waiting = outputFifoStatus();
-      if(waiting > 0) {
-        byte packet_len = readRegister(CCxxx0_RXFIFO);
-        if(packet_len>0) {
-          readRegisterBurst(CCxxx0_RXFIFO, rx_buff, packet_len);  
-          Serial.print("data ");
-          Serial.print(packet_len, DEC);
-          for(byte i=0; i<packet_len; i++) {
-            Serial.print(" ");
-            Serial.print(rx_buff[i], DEC);
-          }
-          Serial.println("");
-        }
-      }
-      Serial.println(strobe(CCxxx0_SFRX), DEC);
-      break;     
-      }
-    case INIT_CONTINUOUS_SEND:
-      strobe(CCxxx0_SFSTXON);
-      desired_function = CONTINUOUS_SEND;
-      break;
-    case CONTINUOUS_SEND:
-      writeRegister(CCxxx0_TXFIFO, TX_BUF_LEN);
-      writeRegisterBurst(CCxxx0_TXFIFO, TX_BUF, TX_BUF_LEN);
-      strobe(CCxxx0_STX);
-      while(!digitalRead(GDO2_PIN)) {
-        Serial.println("Waiting for sync word...");
-        outputState();
-        delay(1000);
-      }
-     while(digitalRead(GDO2_PIN)) {
-        Serial.println("Waiting for packet end...");
-        outputState();
-        delay(1000);
-      }     
-      strobe(CCxxx0_SFTX);
-      outputState();
-      break;
-    case INIT_CONTINUOUS_RECV:
-      outputFifoStatus();
-      outputSignalStatus();
-      outputPacketStatus();
-      strobe(CCxxx0_SFRX);
-      strobe(CCxxx0_SRX);
-      desired_function = CONTINUOUS_RECV;
-      break;
-    case CONTINUOUS_RECV:
-      strobe(CCxxx0_SFRX);
-      outputFifoStatus();
-      outputSignalStatus();
-      outputPacketStatus();
-      outputState();
-      break;  
-    case INIT_TEMPERATURE:
-      rfSettings.rfSettings.iocfg0 = 0;
-      rfSettings.values.temp_sensor_enable = 1;
-      writeRegister(ADDR_IOCFG0, rfSettings.rfSettings.iocfg0);    
-      desired_function = TEMPERATURE;
-      break;
-    case TEMPERATURE:
-      if(outputState() == 1) {
-        // necessary in the idle state to get temperature output
-        writeRegister(ADDR_PTEST, 0xBF); 
-      }
-      byte temperature = outputTemperature();
-      if(outputState() == 1) {
-        // we're leaving the idle state
-        writeRegister(ADDR_PTEST, 0x7F); 
-      }
-      sendPacket(&temperature, 1);
-      outputState();
-      break;  
-  }
-  delay(1000);
-}
-
-typedef union {
-  byte value;
-struct {
-  unsigned GDO0:1;
-  unsigned unused:1;
-  unsigned GDO2:1;
-  unsigned SFD:1;
-  unsigned CCA:1;
-  unsigned PQT_REACHED:1;
-  unsigned CS:1;
-  unsigned LAST_CRC_OK:1;
-};
-} pktstatus_t;
 
 void outputSignalStatus() {
   byte rssi = readRegisterStatus(CCxxx0_RSSI);
@@ -306,14 +165,6 @@ void outputPacketStatus() {
   Serial.println(pktstatus.LAST_CRC_OK);
 }
 
-typedef union {
-  byte value;
-  struct {
-    unsigned bytes_num:7;
-    unsigned overflow:1;
-  };
-} rxtxbytes_t;
-
 byte outputFifoStatus() {
   rxtxbytes_t xbytes;
   
@@ -334,97 +185,14 @@ byte outputFifoStatus() {
   return xbytes.bytes_num;
 }
 
-// Write values to on-chip transfer buffer
-void sendPacket(const byte* buffer, byte len) {
-  writeRegister(CCxxx0_TXFIFO, len);
-  writeRegisterBurst(CCxxx0_TXFIFO, buffer, len);
-  strobe(CCxxx0_STX); // go to transfer mode
-  while(outputState() != 20) {
-    delay(1000);
-  }
-}
 
 // see state diagram from SWRS061F pg 48
 byte outputState() {
   byte state = readState();
   Serial.print("state:");
   Serial.print(state, DEC);
-  Serial.print(": ");
-  // state names from SWRS061F page 91
-  switch(state & 0xF) {
-    case 0:
-      Serial.println("SLEEP (ERROR)");
-      break;
-    case 1:
-      Serial.println("IDLE");
-      break;
-    case 2:
-      Serial.println("XOFF (ERROR)");
-      break;
-    case 3:
-      Serial.println("VCOON_MC");
-      break;
-    case 4:
-      Serial.println("REGON_MC");
-      break;
-    case 5:
-      Serial.println("MANCAL");
-      break;
-    case 6:
-      Serial.println("VCOON");
-      break;
-    case 7:
-      Serial.println("REGON");
-      break;
-    case 8:
-      Serial.println("STARTCAL");
-      break;
-    case 9:
-      Serial.println("BWBOOST");
-      break;
-    case 10:
-      Serial.println("FS_LOCK");
-      break;
-    case 11:
-      Serial.println("IFADCON");
-      break;
-    case 12:
-      Serial.println("ENDCAL");
-      break;
-    case 13:
-      Serial.println("RX");
-      break;
-    case 14:
-      Serial.println("RX_END");
-      break;
-    case 15:
-      Serial.println("RX_RST");
-      break;
-    case 16:
-      Serial.println("TXRX_SWITCH");
-      break;
-    case 17:
-      Serial.println("RXFIFO_OVERFLOW");
-      break;
-    case 18:
-      Serial.println("FSTXON");
-      break;
-    case 19:
-      Serial.println("TX");
-      break;
-    case 20:
-      Serial.println("TX_END");
-      break;
-    case 21:
-      Serial.println("RXTX_SWITCH");
-      break;
-    case 22:
-      Serial.println("TXFIFO_UNDERFLOW");
-      break;
-    default:
-      Serial.println("UNKNOWN (ERROR)");
-      break;
-  }
+  Serial.print(":");
+  Serial.println(getStateName(state));
   return state;
 }
 
@@ -439,94 +207,156 @@ byte outputTemperature() {
   return temperature;
 }
 
-void powerUpReset() {
-  digitalWrite(SS_PIN, HIGH);
-  delay(1); 
-  digitalWrite(SS_PIN, LOW);
-  delay(1); 
-  digitalWrite(SS_PIN, HIGH);
-  delay(41);
-  reset(); 
-}
-
-void reset() {
-  // RESET  
-  strobe(CCxxx0_SRES);
-}
-
-void idle() {
-  // go to idle
-  strobe(CCxxx0_SIDLE);
-}
-
-void writeRegister(byte thisRegister, byte thisValue) {
-  digitalWrite(SS_PIN, LOW);
-  SPI.transfer(thisRegister); //Send register location
-  SPI.transfer(thisValue);  //Send value to record into register
-  digitalWrite(SS_PIN, HIGH);
-}
-
-void writeRegisterBurst(byte thisRegister, const byte* thisValue, byte count) {
-  digitalWrite(SS_PIN, LOW);
-  SPI.transfer(thisRegister|WRITE_BURST); //Send register location
-  for(int i=0; i<count; i++) {
-    SPI.transfer(thisValue[i]);  //Send value to record into register
-  }
-  digitalWrite(SS_PIN, HIGH);
-}
-
-// Strobe registers are accessed by register address OR register address | READ_SINGLE
-// see page 68
-byte strobe(byte thisRegister) {
-  digitalWrite(SS_PIN, LOW);
-  byte state = SPI.transfer(thisRegister); //Send register location
-  digitalWrite(SS_PIN, HIGH);
-  return state;
-}
-
-// Status register are accessed by register address | READ_BURST
-// Multibytes are read by consecutive transfers
-// see page 68
-byte readRegister(byte thisRegister) {
-  byte result = 0;
-  digitalWrite(SS_PIN, LOW);
-  SPI.transfer(thisRegister|READ_SINGLE); //Send register location + single read
-  result = SPI.transfer(0x00);
-  digitalWrite(SS_PIN, HIGH);  
-  return result;
-}
-
-// Status register are accessed by register address | READ_BURST
-// see page 68
-byte readRegisterStatus(byte thisRegister) {
-  byte result = 0;
-  digitalWrite(SS_PIN, LOW);
+// pass a copy of settings, modify it and use that
+void init_sniffer(settings_t& settings) {
+  // disable address filtering
+  settings.values.adr_chk = 0;
+  // disable CRC filtering
+  settings.values.crc_autoflush = 0;
+  // disable forward error correction
+  settings.values.fec_en = 0;
+  // disable preamble/sync
+  settings.values.sync_mode = 0;
+  // disable appending status
+  settings.values.append_status = 0;
+  // disable CRC calculation
+  settings.values.crc_en = 0;
+  // infinite packet length mode
+  settings.values.length_config = 2;
+  // broadcast
+  settings.values.device_addr = 0;
+  // stay in rx
+  settings.values.rxoff_mode = 3; 
   
-  SPI.transfer(thisRegister|READ_BURST); //Send register location + single read
-
-  result = SPI.transfer(0x00);
-  digitalWrite(SS_PIN, HIGH);  
-  return result;
+  writeConfig(settings, PA_TABLE);
 }
 
-// Status register are accessed by register address | READ_BURST
-// Multibytes are read by consecutive transfers
-// see page 68
-void readRegisterBurst(byte thisRegister, byte* buffer, byte len) {
-  byte result = 0;
-  digitalWrite(SS_PIN, LOW);
-  SPI.transfer(thisRegister|READ_BURST); //Send register location + single read with burst bit
-  for(int i=0; i<len; i++) {
-    buffer[i] = SPI.transfer(0x00);
+void loop() {
+  switch(desired_function) {
+    case INIT_SNIFFER:
+      init_sniffer(rfSettings);
+      strobe(CCxxx0_SFTX);
+      strobe(CCxxx0_SRX);
+      desired_function = SNIFFER;
+      current_chan = 0;
+      break;
+    case SNIFFER:
+    {
+      byte waiting = outputFifoStatus();
+      if(waiting > 0) {
+        byte packet_len = readRegister(CCxxx0_RXFIFO);
+        if(packet_len>0) {
+          readRegisterBurst(CCxxx0_RXFIFO, rx_buff, packet_len);  
+          Serial.print("data ");
+          Serial.print(packet_len, DEC);
+          for(byte i=0; i<packet_len; i++) {
+            Serial.print(" ");
+            Serial.print(rx_buff[i], DEC);
+          }
+          Serial.println("");
+        }
+      } else {
+        current_chan++;
+        Serial.print("CHANNEL ");
+        Serial.println(current_chan, DEC);
+        idle();
+        writeRegister(ADDR_CHANNR, current_chan);
+        strobe(CCxxx0_SRX);       
+      }
+      break;     
+    }
+      
+    case INIT_CONTINUOUS_SEND:
+      writeConfig(rfSettings, PA_TABLE);
+      strobe(CCxxx0_SFSTXON);
+      desired_function = CONTINUOUS_SEND;
+      break;
+      
+    case CONTINUOUS_SEND:
+      if(substate == WAITING_SYNC_WORD) {
+        if(!digitalRead(GDO2_PIN)) {
+          Serial.println("Waiting for sync word...");
+        } else {
+          substate = WAITING_PACKET_END;
+        }
+      } else if(substate == WAITING_PACKET_END) {
+        if(digitalRead(GDO2_PIN)) {
+          Serial.println("Waiting for packet end...");          
+        } else {
+          substate = 0;
+          strobe(CCxxx0_SFTX);
+        }
+      } else {
+        writeRegister(CCxxx0_TXFIFO, TX_BUF_LEN);
+        writeRegisterBurst(CCxxx0_TXFIFO, TX_BUF, TX_BUF_LEN);
+        strobe(CCxxx0_STX);
+        substate = WAITING_SYNC_WORD;
+      }
+      break;
+    case INIT_CONTINUOUS_RECV:
+      writeConfig(rfSettings, PA_TABLE);
+      strobe(CCxxx0_SFRX);
+      strobe(CCxxx0_SRX);
+      desired_function = CONTINUOUS_RECV;
+      break;
+    case CONTINUOUS_RECV:
+      strobe(CCxxx0_SFRX);
+      break;  
+    case INIT_TEMPERATURE:
+      writeConfig(rfSettings, PA_TABLE);
+      rfSettings.rfSettings.iocfg0 = 0;
+      rfSettings.values.temp_sensor_enable = 1;
+      writeRegister(ADDR_IOCFG0, rfSettings.rfSettings.iocfg0);    
+      desired_function = TEMPERATURE;
+      break;
+    case TEMPERATURE:
+      if(outputState() == 1) {
+        // necessary in the idle state to get temperature output
+        writeRegister(ADDR_PTEST, 0xBF); 
+      }
+      byte temperature = outputTemperature();
+      if(outputState() == 1) {
+        // we're leaving the idle state
+        writeRegister(ADDR_PTEST, 0x7F); 
+      }
+      sendPacket(&temperature, 1);
+      outputState();
+      break;  
   }
-  digitalWrite(SS_PIN, HIGH);  
+  // if we get a valid byte, switch state
+  if (Serial.available() > 0) {
+    byte inByte = Serial.read();
+    switch(inByte) {
+      case '0':
+        Serial.println("Temperature mode");
+        desired_function = INIT_TEMPERATURE;
+        break;
+      case '1':
+        Serial.println("recv mode");
+        desired_function = INIT_CONTINUOUS_RECV;
+        break;
+      case '2':
+        Serial.println("send mode");
+        desired_function = INIT_CONTINUOUS_SEND;
+        break;
+      case '3':
+        Serial.println("sniffer mode");
+        desired_function = INIT_SNIFFER;
+        break;
+      default:
+        Serial.println("0 Temperature");
+        Serial.println("1 Receive");
+        Serial.println("2 Send");
+        Serial.println("3 Sniffer");
+        break;
+    }
+  } else {
+    outputSignalStatus();
+    outputPacketStatus();
+    outputState();
+  }
+  delay(1000);
 }
 
-byte readState() {
-  byte result;
-  digitalWrite(SS_PIN, LOW);
-  SPI.transfer(CCxxx0_MARCSTATE|READ_BURST); //Send register location + single read
-  result = SPI.transfer(0x00);
-  digitalWrite(SS_PIN, HIGH);  
-  return result;
-}
+
+

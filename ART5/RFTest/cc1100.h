@@ -111,6 +111,29 @@
 #define 	BYTES_IN_RXFIFO     0x7F  		
 #define 	CRC_OK              0x80 
 
+typedef union {
+  byte value;
+  struct {
+    unsigned GDO0:1;
+    unsigned unused:1;
+    unsigned GDO2:1;
+    unsigned SFD:1;
+    unsigned CCA:1;
+    unsigned PQT_REACHED:1;
+    unsigned CS:1;
+    unsigned LAST_CRC_OK:1;
+  };
+} pktstatus_t;
+
+
+typedef union {
+  byte value;
+  struct {
+    unsigned bytes_num:7;
+    unsigned overflow:1;
+  };
+} rxtxbytes_t;
+
 #endif  //cc1100_driver_h
 
 		
