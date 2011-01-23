@@ -17,6 +17,7 @@
  *****************************************************************************/
 #ifndef ARDUINO
 #include <stdio.h>
+#include <math.h>
 typedef unsigned char byte;
 
 #include "cc1100_rf_settings.h"
@@ -264,15 +265,22 @@ void outputConfig(const settings_t& rfSettings, unsigned int xosc_khz) {
   // Channel spacing = 199.951172 
   // Carrier frequency = 433.999969
   // see Frequency Programming, page 55
-  printf("%d %d %d\n", rfSettings.values.freq_high, rfSettings.values.freq_middle, rfSettings.values.freq_low);
-  unsigned long frequency = 0;
+  unsigned int frequency = 0;
   frequency |= rfSettings.values.freq_high<<16 | rfSettings.values.freq_middle<<8 | rfSettings.values.freq_low;
-  frequency = frequency * ((xosc_khz*1000)/2^16);
-  printf("Starting frequency %lld\n", frequency);
-  double carrier = ((xosc_khz*1000)/2^16)*(frequency + rfSettings.values.chan * ((256 + rfSettings.values.chanspc_m)*(2^(rfSettings.values.chanspc_e-2))));
-  printf("Carrier frequency %f\n", carrier);
-  double preferred_if = ((xosc_khz*1000)/2^10)*rfSettings.values.freq_if;
-  printf("Preferred frequency %f\n", preferred_if);
+  // see freq2 pg 73
+  double frequency_increment = (xosc_khz*1000.0)/pow(2,16);
+  printf("Frequency increment %f\n", frequency_increment);
+  unsigned long frequency_converted = frequency * frequency_increment;
+  printf("Starting frequency %ld hz (from 24-bits registers value %d)\n", frequency_converted, frequency);
+  double channel_spacing = ((256 + rfSettings.values.chanspc_m)*(2^(rfSettings.values.chanspc_e-2)));
+  printf("Channel spacing = %f hz\n", channel_spacing);
+  double carrier = frequency_increment*(frequency + rfSettings.values.chan * channel_spacing);
+  printf("Carrier frequency %f hz\n", carrier);
+  // see FSCTRL1 page 73
+  double preferred_if = ((xosc_khz*1000)/pow(2,10))*rfSettings.values.freq_if;
+  printf("Preferred RX frequency delta substraction %f hz\n", preferred_if);
+  // see FSCTRL0 page 73
+  printf("Frequency synthesizer offset %f hz (freqoff value %d)\n", (xosc_khz*1000/pow(2,14))*rfSettings.values.freqoff, rfSettings.values.freqoff);
   // Data rate = 2.39897 
   // RX filter BW = 58.035714 
   // Data format = Normal mode 
@@ -403,22 +411,27 @@ const char* getRegisterName(int i) {
 void compare(const settings_t& rfSettingsA, const settings_t& rfSettingsB) {
   for(int i=0; i<ADDR_TEST0+1; i++) {
     if(rfSettingsA.registers[i] != rfSettingsB.registers[i]) {
-      printf("Register %s (%d) differs\n", getRegisterName(i), i);
+      printf("Register %s (%d) differs: %d vs %d\n", getRegisterName(i), i, rfSettingsA.registers[i], rfSettingsB.registers[i]);
     }
   }
 }
 
+
 int main(void) {
+
    printf("SmartRF studio sensitivity------------------------------------\n");
    outputConfig(rfSettings1, 26000); 
    printf("NetUSB------------------------------------\n");
-   outputConfig(rfSettings2, 26000);
+   outputConfig(rfSettings_netusb, 26000);
    printf("RFC1100A example------------------------------------\n");
    outputConfig(rfSettings3, 26000);
    printf("Defaults------------------------------------\n");
    outputConfig(rfSettings3, 26000);
-   printf("Comparing NetUSB and RFC1100A\n");
-   compare(rfSettings2, rfSettings3);
+   printf("Comparing RFC1100A and NetUSB------------------------------------\n");
+   compare(rfSettings, rfSettings_netusb);
+   make_compatible(rfSettings, rfSettings_netusb);
+   printf("Comparing RFC1100A and NetUSB after conversion------------------------------------\n");
+   compare(rfSettings, rfSettings_netusb);
 
 }
 #endif

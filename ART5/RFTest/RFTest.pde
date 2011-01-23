@@ -57,8 +57,6 @@ const byte MISO_PIN = 12;
 const byte SCK_PIN = 13;
 const byte GDO0_PIN = A0;
 
-settings_t& rfSettings = rfSettings3;
-
 void setup() {
   Serial.begin(9600);
   pinMode(SS_PIN, OUTPUT);
@@ -108,17 +106,13 @@ void setup() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV4); // 16Mhz/4 = 4Mhz
   
-  powerUpReset();
-  
-  //Configure registers to match NetUSB
-  rfSettings.rfSettingsValues.chan = rfSettings2.rfSettingsValues.chan;
-  rfSettings.rfSettingsValues.mod_format = rfSettings2.rfSettingsValues.mod_format;
-  rfSettings.rfSettingsValues.length_config = rfSettings2.rfSettingsValues.length_config;
-  rfSettings.rfSettingsValues.packet_length = rfSettings2.rfSettingsValues.packet_length;
-  
+  make_compatible(rfSettings, rfSettings_netusb);
+   
   // use GDO2 instead of GD00
   rfSettings.rfSettings.iocfg2 =  rfSettings.rfSettings.iocfg0;
   
+  powerUpReset();
+
   //write registers
   for(byte i=0; i<ADDR_RCCTRL0+1; i++) {
     writeRegister(i, rfSettings.registers[i]);
@@ -177,7 +171,7 @@ void loop() {
       break;
     case INIT_TEMPERATURE:
       rfSettings.rfSettings.iocfg0 = 0;
-      rfSettings.rfSettingsValues.temp_sensor_enable = 1;
+      rfSettings.values.temp_sensor_enable = 1;
       writeRegister(ADDR_IOCFG0, rfSettings.rfSettings.iocfg0);    
       desired_function = TEMPERATURE;
       break;

@@ -94,7 +94,7 @@ settings_t rfSettings1 = {
 };
 
 // these are from the NetUSB cc1100.h
-settings_t rfSettings2 = {
+settings_t rfSettings_netusb = {
     0x29,  // IOCFG2              GDO2 Output Pin Configuration
     0x46,  // IOCFG1              GDO1 Output Pin Configuration
     0x47,  // IOCFG0              GDO0 Output Pin Configuration
@@ -245,4 +245,20 @@ settings_t rfSettingsDefaults = {
     0x0B,  // TEST0               Various Test Settings
 };
 const byte PA_TABLE[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0};   //10dBm
+
+settings_t& rfSettings = rfSettings3;
+
+void make_compatible(settings_t& rfSettingsA, const settings_t& rfSettingsB) {
+   //Configure relevant registers of A to match B
+  rfSettingsA.values.chan = rfSettingsB.values.chan;
+  rfSettingsA.values.mod_format = rfSettingsB.values.mod_format;
+  rfSettingsA.values.length_config = rfSettingsB.values.length_config;
+  rfSettingsA.values.packet_length = rfSettingsB.values.packet_length;
+  rfSettingsA.values.deviation_e = rfSettingsB.values.deviation_e ;
+  rfSettingsA.values.deviation_m = rfSettingsB.values.deviation_m; 
+  rfSettingsA.values.freq_high = rfSettingsB.values.freq_high ;
+  rfSettingsA.values.freq_middle = rfSettingsB.values.freq_middle; 
+  rfSettingsA.values.freq_low = rfSettingsB.values.freq_low; 
+}
+  
 #endif
