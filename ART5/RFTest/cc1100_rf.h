@@ -87,8 +87,8 @@ typedef struct {
     //byte rcctrl0_status;   // 003d Last RC Oscillator Calibration Result 
 } RF_SETTINGS;
 
-const byte CHP_RDY = 0x29;
-const byte THREE_STATES = 0x2e;
+#define CHP_RDY = 0x29;
+#define THREE_STATES = 0x2e;
 
 // Most significant fields at the bottom!
 typedef struct {

@@ -76,7 +76,7 @@ settings_t rfSettings_netusb = {
 };
 
 // these are from the RFC-1100A RFC1100A-fasong.c
-settings_t rfSettings3 = {
+settings_t rfSettings_rfc1100a = {
     0x0B,  // IOCFG2              GDO2 Output Pin Configuration
     0x46,  // IOCFG1              GDO1 Output Pin Configuration
     0x06,  // IOCFG0              GDO0 Output Pin Configuration
@@ -129,7 +129,7 @@ settings_t rfSettings3 = {
 
 const byte PA_TABLE[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0};   //10dBm
 
-settings_t& rfSettings = rfSettings3;
+settings_t& rfSettings = rfSettings_netusb;
 
 void make_compatible(settings_t& rfSettingsA, const settings_t& rfSettingsB) {
    //Configure relevant registers of A to match B

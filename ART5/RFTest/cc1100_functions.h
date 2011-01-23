@@ -57,7 +57,7 @@ enum states {
 
 const char* getStateName(const byte state) {
   // state names from SWRS061F page 91
-  if(state & 0xF >= 22) {
+  if(state & 0xF > TXFIFO_UNDERFLOW ) {
     return "ERROR";
   }
   return state_names[state & 0xF];
@@ -141,9 +141,9 @@ void sendPacket(const byte* buffer, byte len) {
   writeRegister(CCxxx0_TXFIFO, len);
   writeRegisterBurst(CCxxx0_TXFIFO, buffer, len);
   strobe(CCxxx0_STX); // go to transfer mode
-  while(outputState() != 20) {
-    delay(1000);
-  }
+  do {
+    delay(100);
+  } while(readState() != TX);
 }
 
 void reset() {
@@ -154,17 +154,18 @@ void reset() {
 void idle() {
   // go to idle
   strobe(CCxxx0_SIDLE);
-  do {
+  //do {
     delay(100);
-  } while(readState() != IDLE);
+  //} while(readState() != IDLE);
 }
 
 void rx() {
   // go to idle
+  strobe(CCxxx0_SFTX);
   strobe(CCxxx0_SRX);
-  do {
+  //do {
     delay(100);
-  } while(readState() != RX);
+  //} while(readState() != RX);
 }
 
 void powerUpReset() {

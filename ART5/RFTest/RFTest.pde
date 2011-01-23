@@ -48,13 +48,13 @@ Transceiver pinout (femelle header -> ribbon cable -> 32 pins IC. Red line is #1
 09)GND   24)GND
 */
 
-const byte GDO2_PIN = 8;
-const byte PAC_PIN = 9;
-const byte SS_PIN = 10;
-const byte MOSI_PIN = 11;
-const byte MISO_PIN = 12;
-const byte SCK_PIN = 13;
-const byte GDO0_PIN = A0;
+#define  GDO2_PIN 8
+#define  PAC_PIN 9
+#define  SS_PIN 10
+#define  MOSI_PIN 11
+#define  MISO_PIN 12
+#define  SCK_PIN 13
+#define  GDO0_PIN A0
 
 #include "cc1100_functions.h"
 
@@ -107,42 +107,29 @@ void setup() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV4); // 16Mhz/4 = 4Mhz
   
-  make_compatible(rfSettings, rfSettings_netusb);
+  //make_compatible(rfSettings, rfSettings_netusb);
    
   // use GDO2 instead of GD00
-  rfSettings.rfSettings.iocfg2 =  rfSettings.rfSettings.iocfg0;
+  //rfSettings.rfSettings.iocfg2 =  rfSettings.rfSettings.iocfg0;
   
   powerUpReset();
 }
 
-enum desired_function {
-  INIT_TEMPERATURE,
-  TEMPERATURE,
-  INIT_CONTINUOUS_SEND,
-  CONTINUOUS_SEND,
-  INIT_CONTINUOUS_RECV,
-  CONTINUOUS_RECV,
-  INIT_SNIFFER,
-  SNIFFER, 
-  WAITING_SYNC_WORD,
-  WAITING_PACKET_END,
-};
 
-byte desired_function = INIT_SNIFFER;
-byte substate = 0;
-byte current_chan = 0;
-
-const byte TX_BUF_LEN = 33;
-const byte TX_BUF[TX_BUF_LEN]=
-    { 0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,
-      0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28, 0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39
-    };	 
-    
-byte rx_buff[64];
+// 74 is the RSSI offset
+int convert_rssi_dBm(byte rssi) {
+  if(rssi >= 128) {
+    return (rssi - 256)/2 - 74;
+  } else {
+    return (rssi)/2 - 74;
+  }  
+}
 
 void outputSignalStatus() {
   byte rssi = readRegisterStatus(CCxxx0_RSSI);
   Serial.print("RSSI:");
+  Serial.print(convert_rssi_dBm(rssi));
+  Serial.print(" from ");
   Serial.println(rssi, DEC);
 }
 
@@ -231,8 +218,43 @@ void init_sniffer(settings_t& settings) {
   writeConfig(settings, PA_TABLE);
 }
 
-int last_millis = 0;
-boolean update = true;
+const byte X_BUF_LEN = 64;
+byte x_buf[X_BUF_LEN];
+
+void dumpRxFifo() {
+  byte packet_len = readRegister(CCxxx0_RXFIFO);
+  if(packet_len>0) {
+    readRegisterBurst(CCxxx0_RXFIFO, x_buf, packet_len);  
+    Serial.print("data ");
+    Serial.print(packet_len, DEC);
+    for(byte i=0; i<packet_len; i++) {
+      Serial.print(" ");
+      Serial.print(x_buf[i], DEC);
+    }
+    Serial.println("");
+  }
+}
+
+enum desired_function {
+  INIT_TEMPERATURE,
+  TEMPERATURE,
+  INIT_CONTINUOUS_SEND,
+  CONTINUOUS_SEND,
+  INIT_CONTINUOUS_RECV,
+  CONTINUOUS_RECV,
+  INIT_SNIFFER,
+  SNIFFER, 
+  WAITING_SYNC_WORD,
+  WAITING_PACKET_END,
+};
+
+byte desired_function = INIT_CONTINUOUS_RECV;
+byte substate = 0;
+byte current_chan = 0;
+
+unsigned long last_millis = 0;
+boolean update = false;
+boolean auto_update = true;
 
 void loop() {
   switch(desired_function) {
@@ -242,8 +264,10 @@ void loop() {
       strobe(CCxxx0_SRX);
       desired_function = SNIFFER;
       current_chan = 0;
-      update = false;
+      auto_update = false;
       break;
+    //http://iaf-bs.de/projects/ism-433-868.en.html
+    //433 MHz-ISM-band covers the frequency range from 433.05 up to 434.79 MHz
     case SNIFFER:
     {
       if(readRegisterStatus(CCxxx0_RXBYTES)) {
@@ -251,17 +275,9 @@ void loop() {
         outputFifoStatus();
         Serial.print("CHANNEL ");
         Serial.println(current_chan, DEC);
-        byte packet_len = readRegister(CCxxx0_RXFIFO);
-        if(packet_len>0) {
-          readRegisterBurst(CCxxx0_RXFIFO, rx_buff, packet_len);  
-          Serial.print("data ");
-          Serial.print(packet_len, DEC);
-          for(byte i=0; i<packet_len; i++) {
-            Serial.print(" ");
-            Serial.print(rx_buff[i], DEC);
-          }
-          Serial.println("");
-        }
+        
+        dumpRxFifo();
+        
       } else {
         current_chan++;
         idle();
@@ -275,44 +291,60 @@ void loop() {
       writeConfig(rfSettings, PA_TABLE);
       strobe(CCxxx0_SFSTXON);
       desired_function = CONTINUOUS_SEND;
+      auto_update = true;
+      for(byte i=0;i< X_BUF_LEN;i++) {
+        x_buf[i] = i;
+      }
       break;
       
     case CONTINUOUS_SEND:
       if(substate == WAITING_SYNC_WORD) {
         if(!digitalRead(GDO2_PIN)) {
-          Serial.println("Waiting for sync word...");
+          if((millis() - last_millis) > 1000) {
+            Serial.println("Waiting for sync word...");
+          }
         } else {
           substate = WAITING_PACKET_END;
         }
       } else if(substate == WAITING_PACKET_END) {
         if(digitalRead(GDO2_PIN)) {
-          Serial.println("Waiting for packet end...");          
+          if((millis() - last_millis) > 1000) {
+            Serial.println("Waiting for packet end...");          
+          }  
         } else {
           substate = 0;
           strobe(CCxxx0_SFTX);
         }
       } else {
-        writeRegister(CCxxx0_TXFIFO, TX_BUF_LEN);
-        writeRegisterBurst(CCxxx0_TXFIFO, TX_BUF, TX_BUF_LEN);
+        writeRegister(CCxxx0_TXFIFO, X_BUF_LEN);
+        writeRegisterBurst(CCxxx0_TXFIFO, x_buf, X_BUF_LEN);
         strobe(CCxxx0_STX);
         substate = WAITING_SYNC_WORD;
       }
       break;
+      
     case INIT_CONTINUOUS_RECV:
       writeConfig(rfSettings, PA_TABLE);
-      strobe(CCxxx0_SFRX);
-      strobe(CCxxx0_SRX);
+      rx();
       desired_function = CONTINUOUS_RECV;
+      auto_update = false;
+      update = true;      
       break;
+      
     case CONTINUOUS_RECV:
-      strobe(CCxxx0_SFRX);
+      if(readRegisterStatus(CCxxx0_RXBYTES)) {
+        update = true;
+        dumpRxFifo();
+      }
       break;  
+      
     case INIT_TEMPERATURE:
       writeConfig(rfSettings, PA_TABLE);
       rfSettings.rfSettings.iocfg0 = 0;
       rfSettings.values.temp_sensor_enable = 1;
       writeRegister(ADDR_IOCFG0, rfSettings.rfSettings.iocfg0);    
       desired_function = TEMPERATURE;
+      auto_update = true;
       break;
     case TEMPERATURE:
       if(outputState() == 1) {
@@ -333,19 +365,19 @@ void loop() {
     byte inByte = Serial.read();
     switch(inByte) {
       case 't':
-        Serial.println("Temperature mode");
+        Serial.println("Temperature");
         desired_function = INIT_TEMPERATURE;
         break;
       case 'r':
-        Serial.println("recv mode");
+        Serial.println("Recv");
         desired_function = INIT_CONTINUOUS_RECV;
         break;
       case 's':
-        Serial.println("send mode");
+        Serial.println("Send");
         desired_function = INIT_CONTINUOUS_SEND;
         break;
       case 'f':
-        Serial.println("sniffer mode");
+        Serial.println("sniFfer");
         desired_function = INIT_SNIFFER;
         break;
       case 'o':
@@ -355,11 +387,12 @@ void loop() {
         Serial.println("t Temperature");
         Serial.println("r Receive");
         Serial.println("s Send");
-        Serial.println("f Sniffer");
+        Serial.println("f sniFfer");
+        Serial.println("o Output stats");
         break;
     }
   } else {
-    if((last_millis - millis()) > 1000 && update) {
+    if((auto_update && ((millis() - last_millis) > 1000)) || update) {
       update = false;
       last_millis = millis();
       outputSignalStatus();

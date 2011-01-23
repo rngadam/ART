@@ -19,9 +19,7 @@
 #include <stdio.h>
 #include <math.h>
 
-
 #include "cc1100_rf_settings.h"
-
 
 settings_t rfSettingsDefaults = {
     0x29,  // IOCFG2              GDO2 Output Pin Configuration
@@ -266,7 +264,7 @@ void outputConfig(const settings_t& rfSettings, unsigned int xosc_khz) {
       printf("30/32 sync word bits detected\n");
       break;
     case 4:
-      printf("No preamble/sync, carrier-sence above threshold\n");
+      printf("No preamble/sync, carrier-sense above threshold\n");
       break;
     case 5:
       printf("15/16 + carrier-sense above threshold\n");
@@ -471,16 +469,16 @@ int main(void) {
    printf("NetUSB------------------------------------\n");
    outputConfig(rfSettings_netusb, 26000);
    printf("RFC1100A example------------------------------------\n");
-   outputConfig(rfSettings3, 26000);
+   outputConfig(rfSettings_rfc1100a, 26000);
    printf("Defaults------------------------------------\n");
-   outputConfig(rfSettings3, 26000);
+   outputConfig(rfSettings_rfc1100a, 26000);
    printf("Comparing RFC1100A and NetUSB------------------------------------\n");
-   compare(rfSettings, rfSettings_netusb);
-   make_compatible(rfSettings, rfSettings_netusb);
+   compare(rfSettings_rfc1100a, rfSettings_netusb);
+   make_compatible(rfSettings_rfc1100a, rfSettings_netusb);
    printf("Comparing RFC1100A and NetUSB after conversion------------------------------------\n");
-   compare(rfSettings, rfSettings_netusb);
+   compare(rfSettings_rfc1100a, rfSettings_netusb);
    printf("Final------------------------------------\n");
-   outputConfig(rfSettings, 26000);
+   outputConfig(rfSettings_rfc1100a, 26000);
 
 }
 #endif
