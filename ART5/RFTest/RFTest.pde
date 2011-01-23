@@ -137,9 +137,11 @@ enum desired_function {
   TEMPERATURE,
   INIT_CONTINUOUS_SEND,
   CONTINUOUS_SEND,
+  INIT_CONTINUOUS_RECV,
+  CONTINUOUS_RECV,
 };
 
-byte desired_function = INIT_CONTINUOUS_SEND;
+byte desired_function = INIT_CONTINUOUS_RECV;
 const byte TX_BUF_LEN = 33;
 const byte TX_BUF[TX_BUF_LEN]=
     { 0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,
@@ -169,6 +171,16 @@ void loop() {
       strobe(CCxxx0_SFTX);
       outputState();
       break;
+    case INIT_CONTINUOUS_RECV:
+      strobe(CCxxx0_SFRX);
+      strobe(CCxxx0_SRX);
+      desired_function = CONTINUOUS_RECV;
+      break;
+    case CONTINUOUS_RECV:
+      strobe(CCxxx0_SFRX);
+      outputFifoStatus();
+      outputState();
+      break;  
     case INIT_TEMPERATURE:
       rfSettings.rfSettings.iocfg0 = 0;
       rfSettings.values.temp_sensor_enable = 1;
@@ -190,6 +202,21 @@ void loop() {
       break;  
   }
   delay(1000);
+}
+
+void outputFifoStatus() {
+      byte rxbytes = readRegister(CCxxx0_RXBYTES);
+      byte txbytes = readRegister(CCxxx0_TXBYTES);
+      Serial.print("rxbytes = ");
+      if(rxbytes & 128) {
+        Serial.print("overflow ");
+      }
+      Serial.println(rxbytes & 127);
+      if(txbytes & 128) {
+        Serial.print("overflow ");
+      }
+      Serial.print("txbytes = ");
+      Serial.println(txbytes & 127);   
 }
 
 // Write values to on-chip transfer buffer
