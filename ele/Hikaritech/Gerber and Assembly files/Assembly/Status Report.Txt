@@ -1,0 +1,10 @@
+Output: Bill of Materials (Grouped)
+Type  : BOM
+From  : Project [ART Robot.PrjPCB]
+   Generated File[Bill of Materials (Grouped)-ART Robot.xls]
+
+
+Files Generated   : 1
+Documents Printed : 0
+
+Finished Output Generation At 4:24:29 PM On 16/02/2011
