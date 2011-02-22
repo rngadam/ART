@@ -1,0 +1,20 @@
+---------------------------------------------------------------------------
+NCDrill File Report For: ART Robot.PCBDOC   16/02/2011  4:09:06 PM
+---------------------------------------------------------------------------
+
+Layer Pair : Top Layer to Bottom Layer
+ASCII RoundHoles File : ART Robot.TXT
+EIA File   : ART Robot.DRL
+
+Tool         Hole Size           Hole Type     Hole Count Plated       Tool Travel
+---------------------------------------------------------------------------
+T1        11.81mil (0.29997mm)     Round          7                3.61 Inch (91.70 mm)
+T2        33.46mil (0.84988mm)     Round          14               9.24 Inch (234.75 mm)
+T3        35.43mil (0.89992mm)     Round          138              29.49 Inch (748.98 mm)
+T4        39.37mil (1mm)           Round          7                2.04 Inch (51.75 mm)
+T5        98.43mil (2.50012mm)     Round          2                0.83 Inch (21.00 mm)
+T6        120mil (3.048mm)         Round          4                5.06 Inch (128.53 mm)
+---------------------------------------------------------------------------
+Totals                                            172              50.26 Inch (1276.71 mm)
+
+Total Processing Time (hh:mm:ss) : 00:00:00
