@@ -297,8 +297,8 @@ void setup() {
 }
 
 
-boolean no_obstacle(enum_t sensor) {
-  boolean value = analogRead(sensor_to_pin[sensor]) > 500;
+boolean obstacle(enum_t sensor) {
+  boolean value = analogRead(sensor_to_pin[sensor]) < 500;
   if(sensor_readings[sensor] != value) {
     sensor_readings[sensor] = value;
     LOG_TELEMETRY(INFRARED_SENSORS, sensor, value);
@@ -310,87 +310,106 @@ boolean no_obstacle(enum_t sensor) {
  * MAIN STATE MACHINE LOOP
  *****************************************************************************/
 boolean left, right, back, left_side, right_side;
-enum_t initial_state;
-enum_t dir;
-enum_t current_state = STOP;
+boolean going_forward;
+boolean stopped;
 
-void loop(){
-  initial_state = current_state;
+int go_right = 0;
+int go_left = 0;
+int go_forward = 0;
+int go_reverse = 0;
 
+void loop(){  
+  left = obstacle(SENSOR_LEFT);
+  right = obstacle(SENSOR_RIGHT);
+  left_side = obstacle(SENSOR_LEFT_SIDE);
+  right_side = obstacle(SENSOR_RIGHT_SIDE);
+  back = obstacle(SENSOR_BACK);
+  
   // DECISION LOGIC
-  left = no_obstacle(SENSOR_LEFT);
-  right = no_obstacle(SENSOR_RIGHT);
   if(left && right) {
-    current_state = FORWARD_UNIT;
-  } else if(left && !right) {
-    current_state = FORWARD_LEFT_UNIT;
-  } else if(!left && right) {
-    current_state = FORWARD_RIGHT_UNIT;
+    // stop! something crossed our visual field...
+    go_forward = 0;
+  }
+  
+  if(left) {
+    go_right++; 
+    go_reverse++;
   } else {
-    if((back = no_obstacle(SENSOR_BACK))) {
-      if((left_side = no_obstacle(SENSOR_LEFT_SIDE))) {
-        current_state = REVERSE_LEFT_UNIT;
-      } else if((right_side = no_obstacle(SENSOR_RIGHT_SIDE))) {
-        current_state = REVERSE_RIGHT_UNIT;
+    go_left++;
+    go_forward++;
+  }
+  
+  if(right) {
+    go_left++; 
+    go_reverse++;
+  } else {
+    go_right++;
+    go_forward++;
+  }
+  
+  if(back) {
+    go_reverse = 0;
+  } 
+  
+  if(right_side) {
+    go_left++;
+  } else {
+    go_right++;
+  }
+ 
+  if(left_side) {
+    go_right++;
+  } else {
+    go_left++;
+  }
+  
+  if(go_right > 1000 || go_right < -1000) {
+    go_right = 0;
+  }
+  if(go_left > 1000 || go_left < -1000) {
+    go_left = 0;
+  }
+  if(go_forward > 1000 || go_forward < -1000) {
+    go_forward = 0;
+  }
+  if(go_reverse > 1000 || go_reverse < -1000) {
+    go_reverse = 0;
+  }
+  
+  // decision time! 
+  if(go_forward <= 0 && go_reverse <= 0) {
+    full_stop();
+  }
+ 
+  if(go_forward > 0 && go_forward > go_reverse) {
+    go(FORWARD);
+    go_forward--;
+    going_forward = true;
+    stopped = false;
+  } else if(go_reverse > 0) {
+    go(REVERSE);
+    go_reverse--;
+    going_forward = false;
+    stopped = false;
+  } else {
+    stopped = true;
+  }
+  
+  if(!stopped) {
+    if(go_left > 0 && go_left > go_right) {
+      if(going_forward) {
+        go(LEFT);
       } else {
-        current_state = REVERSE_UNIT;
-      }  
-    } else {
-      current_state = STUCK;
-      //recovery algorithm
+        go(RIGHT);
+      }
+      go_left--;
+    } else if(go_right > 0 && go_right > go_left) {
+      if(going_forward) {
+        go(RIGHT);
+      } else {
+        go(LEFT);
+      }
+      go_right--;
     }
   }
-  
-  // skip changing actuators if no changes
-  if(initial_state == current_state) {
-    return;
-  }
-  
-  // ACTUATORS CONTROL
-  switch(current_state) {
-    case FORWARD_LEFT_UNIT:
-      go(LEFT);
-      break;
-    case FORWARD_RIGHT_UNIT:
-      go(RIGHT);
-      break;
-    case REVERSE_LEFT_UNIT:
-      go(RIGHT);
-      break;
-    case REVERSE_RIGHT_UNIT:
-      go(LEFT);
-      break;
-    case REVERSE_UNIT:
-    case FORWARD_UNIT:
-      suspend(RIGHT);
-      suspend(LEFT);
-      break;
-    case STUCK: 
-      full_stop();
-      break;
-    default:
-      LOG_BAD_STATE(current_state);
-      break;
-  }
-  switch(current_state) {
-    case FORWARD_LEFT_UNIT:
-    case FORWARD_RIGHT_UNIT:
-    case FORWARD_UNIT:
-      go(FORWARD);
-      break;
-    case REVERSE_LEFT_UNIT:
-    case REVERSE_RIGHT_UNIT:
-    case REVERSE_UNIT:
-      go(REVERSE);
-      break;
-    case STUCK:
-      // we've already stopped
-      break;
-    default:
-      LOG_BAD_STATE(current_state);
-      break;
-  }
-  
-  LOG_TELEMETRY(STATE_CHANGE, initial_state, current_state);
- 
 }
