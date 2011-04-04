@@ -127,10 +127,11 @@ pin_t INFRARED_RIGHT_SIDE = A2;
 pin_t INFRARED_BACK = A1;
 
 // various directions we can go to
-pin_t FORWARD_PIN =  2;      // the number of the LED pin
-pin_t REVERSE_PIN =  3;  
-pin_t LEFT_PIN = 4;  
-pin_t RIGHT_PIN =  5;  
+pin_t COLLISION_PIN = 2;
+pin_t FORWARD_PIN =  3;      // the number of the LED pin
+pin_t REVERSE_PIN =  4;  
+pin_t LEFT_PIN = 5;  
+pin_t RIGHT_PIN =  6;  
 //pin_t PUSHBUTTON_PIN = 10;
 // servo
 
@@ -286,7 +287,7 @@ void setup() {
   pinMode(REVERSE_PIN, OUTPUT);    
   pinMode(LEFT_PIN, OUTPUT);  
   pinMode(RIGHT_PIN, OUTPUT);  
-
+  //pinMode(COLLISION_PIN, INPUT);  
   //buttons
   //pinMode(PUSHBUTTON_PIN, INPUT);
 
@@ -294,6 +295,8 @@ void setup() {
   full_stop();
   Serial.print("ART SETUP COMPLETED ");
   Serial.println(millis());
+  
+  attachInterrupt(0, collision_detected, CHANGE);
 }
 
 
@@ -315,8 +318,15 @@ boolean stopped;
 
 int go_right = 0;
 int go_left = 0;
-int go_forward = 0;
+volatile int go_forward = 0;
 int go_reverse = 0;
+volatile int collisions = 0;
+
+void collision_detected() {
+  go_forward = 0;
+  collisions++;
+  Serial.println("!");
+}
 
 void loop(){  
   left = obstacle(SENSOR_LEFT);
@@ -324,16 +334,9 @@ void loop(){
   left_side = obstacle(SENSOR_LEFT_SIDE);
   right_side = obstacle(SENSOR_RIGHT_SIDE);
   back = obstacle(SENSOR_BACK);
-  
-  // DECISION LOGIC
-  if(left && right) {
-    // stop! something crossed our visual field...
-    go_forward = 0;
-  }
-  
   if(left) {
     go_right++; 
-    go_reverse++;
+    go_reverse++;            
   } else {
     go_left++;
     go_forward++;
@@ -379,6 +382,7 @@ void loop(){
   // decision time! 
   if(go_forward <= 0 && go_reverse <= 0) {
     full_stop();
+    stopped = true;
   }
  
   if(go_forward > 0 && go_forward > go_reverse) {
@@ -391,9 +395,7 @@ void loop(){
     go_reverse--;
     going_forward = false;
     stopped = false;
-  } else {
-    stopped = true;
-  }
+  } 
   
   if(!stopped) {
     if(go_left > 0 && go_left > go_right) {
