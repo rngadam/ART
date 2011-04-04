@@ -33,7 +33,11 @@ void EnableLed2() {
 }
 
 static void  __stdcall callback(unsigned char* buff, size_t n) {
-	printf("Got a callback!");
+	printf("Got a callback!\n");
+	for(int i=0;i<n;i++) {
+		printf("%d.", buff[i]);
+	}
+	printf("\n");
 }
 
 BOOL WINAPI ConsoleHandler(
@@ -68,17 +72,22 @@ int main(int argc, _TCHAR* argv[])
 			printf("Successfully opened device!\n");
 			EnableLed2();
 			//NetusbRegisterNotification(HWND handle);
+			printf("Starting listening...");
 			NetusbSetCallback(callback);
+			NetusbSetFrequence(4487-4224);
 			NetusbStartListen();
 				
 		}
 	} else {
 		printf("no!");
 	}
-	BYTE buf[1];
+	BYTE buf[255];
+	BYTE returned = 0;
 	BYTE result;
 	int i = 0;
+	buf[0] = 99;
 	while(running) {
+		/*
 		i++;
 		if(i>255) {
 			i = 0;
@@ -88,6 +97,11 @@ int main(int argc, _TCHAR* argv[])
 		result = NetusbSendData(buf, 1);
 		if(result != 0) {
 			printf("Error %d", result);
+		}
+		*/
+		NetusbGetData(buf, &returned);
+		if(returned) {
+			printf("received %d", buf[1]);
 		}
 		Sleep(100);
 	}

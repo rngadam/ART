@@ -205,7 +205,7 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath="..\netusb.h"
+				RelativePath=".\netusb.h"
 				>
 			</File>
 			<File
@@ -223,6 +223,14 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 		</Filter>
+		<File
+			RelativePath=".\Netusb.dll"
+			>
+		</File>
+		<File
+			RelativePath=".\NetusbD.dll"
+			>
+		</File>
 		<File
 			RelativePath=".\ReadMe.txt"
 			>

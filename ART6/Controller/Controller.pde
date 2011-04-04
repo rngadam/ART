@@ -140,14 +140,18 @@ pin_t RIGHT_PIN =  5;
  *****************************************************************************/
 enum sensor_position {
   SENSOR_LEFT, 
-  SENSOR_FRONT, 
+  SENSOR_FRONT, // unused 
   SENSOR_RIGHT,
   SENSOR_LEFT_SIDE,
   SENSOR_RIGHT_SIDE,
-  SENSOR_BACK,
+  SENSOR_BACK_LEFT, // unused
+  SENSOR_BACK, 
+  SENSOR_BACK_RIGHT, // unused
   NUMBER_READINGS,
 };
 
+boolean sensor_readings[NUMBER_READINGS]; 
+pin_t sensor_to_pin[] = { INFRARED_LEFT, 0, INFRARED_RIGHT, INFRARED_LEFT_SIDE, INFRARED_RIGHT_SIDE, 0, INFRARED_BACK, 0};
 /*****************************************************************************
  * RC CAR RELATED
  *****************************************************************************/
@@ -168,7 +172,7 @@ bitmask8_t current_command = 0;
 /*
 Makes sure that exclusive directions are prohibited
  */
-void _go(enum_t  dir) {
+void go(enum_t  dir) {
   switch(dir) {
   case FORWARD:
     digitalWrite(REVERSE_PIN, LOW);
@@ -192,7 +196,7 @@ void _go(enum_t  dir) {
   }
 }
 
-void _suspend(enum_t dir) {
+void suspend(enum_t dir) {
   switch(dir) {
   case FORWARD:
     digitalWrite(FORWARD_PIN, LOW);   
@@ -219,7 +223,7 @@ example:
  if current_command is 1010 (or similar), then skip
  otherwise (1000), execute and set current_command = 1000 | 0010 = 1010
  */
-void go(enum_t dir) {
+void _go(enum_t dir) {
   bitmask8_t dir_bitmask = 1 << dir;
   if(!(current_command & dir_bitmask)) {
     _go(dir);
@@ -228,7 +232,7 @@ void go(enum_t dir) {
   }
 }
 
-void suspend(enum_t dir) {
+void _suspend(enum_t dir) {
   bitmask8_t dir_bitmask = 1 << dir;
   if(current_command & dir_bitmask) {
     _suspend(dir);
@@ -267,9 +271,6 @@ enum states {
   SMALL_TURN_CW,
 };
 
-enum_t current_state = STOP;
-enum_t previous_state = FORWARD_UNIT;
-
 /*****************************************************************************
  * SETUP
  *****************************************************************************/
@@ -295,38 +296,41 @@ void setup() {
   Serial.println(millis());
 }
 
-boolean no_obstacle(pin_t pin) {
-  int value = analogRead(pin);
-  boolean no_obstacle = value > 500;
-  //LOG_TELEMETRY(INFRARED_SENSORS, pin, value);
-  return no_obstacle;
+
+boolean no_obstacle(enum_t sensor) {
+  boolean value = analogRead(sensor_to_pin[sensor]) > 500;
+  if(sensor_readings[sensor] != value) {
+    sensor_readings[sensor] = value;
+    LOG_TELEMETRY(INFRARED_SENSORS, sensor, value);
+  }
+  return sensor_readings[sensor];
 }
 
 /*****************************************************************************
  * MAIN STATE MACHINE LOOP
  *****************************************************************************/
-void loop(){
-  enum_t initial_state = current_state;
+boolean left, right, back, left_side, right_side;
+enum_t initial_state;
+enum_t dir;
+enum_t current_state = STOP;
 
-  // SENSOR READINGS
-  boolean left = no_obstacle(INFRARED_LEFT);
-  boolean right = no_obstacle(INFRARED_RIGHT);
-  boolean left_side = no_obstacle(INFRARED_LEFT_SIDE);
-  boolean right_side = no_obstacle(INFRARED_RIGHT_SIDE);
-  boolean back = no_obstacle(INFRARED_BACK);
-  
+void loop(){
+  initial_state = current_state;
+
   // DECISION LOGIC
+  left = no_obstacle(SENSOR_LEFT);
+  right = no_obstacle(SENSOR_RIGHT);
   if(left && right) {
     current_state = FORWARD_UNIT;
   } else if(left && !right) {
     current_state = FORWARD_LEFT_UNIT;
   } else if(!left && right) {
     current_state = FORWARD_RIGHT_UNIT;
-  } else if(!left && !right) {
-    if(back) {
-      if(left_side) {
+  } else {
+    if((back = no_obstacle(SENSOR_BACK))) {
+      if((left_side = no_obstacle(SENSOR_LEFT_SIDE))) {
         current_state = REVERSE_LEFT_UNIT;
-      } else if(right_side) {
+      } else if((right_side = no_obstacle(SENSOR_RIGHT_SIDE))) {
         current_state = REVERSE_RIGHT_UNIT;
       } else {
         current_state = REVERSE_UNIT;
@@ -341,8 +345,6 @@ void loop(){
   if(initial_state == current_state) {
     return;
   }
-  
-  full_stop();
   
   // ACTUATORS CONTROL
   switch(current_state) {
@@ -360,29 +362,34 @@ void loop(){
       break;
     case REVERSE_UNIT:
     case FORWARD_UNIT:
-      // do nothing, we will decide below what to do
+      suspend(RIGHT);
+      suspend(LEFT);
+      break;
+    case STUCK: 
+      full_stop();
       break;
     default:
       LOG_BAD_STATE(current_state);
       break;
   }
-  int dir;
   switch(current_state) {
     case FORWARD_LEFT_UNIT:
     case FORWARD_RIGHT_UNIT:
     case FORWARD_UNIT:
-      dir = FORWARD;
+      go(FORWARD);
       break;
     case REVERSE_LEFT_UNIT:
     case REVERSE_RIGHT_UNIT:
     case REVERSE_UNIT:
-      dir = REVERSE;
+      go(REVERSE);
+      break;
+    case STUCK:
+      // we've already stopped
       break;
     default:
       LOG_BAD_STATE(current_state);
       break;
   }
-  go(dir);
   
   LOG_TELEMETRY(STATE_CHANGE, initial_state, current_state);
  

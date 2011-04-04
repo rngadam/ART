@@ -28,9 +28,8 @@ long Ultrasonic::Timing()
   return pulseIn(Echo_pin,HIGH);
 }
 
-long Ultrasonic::Ranging(int sys)
+long Ultrasonic::Ranging()
 {
-  Timing();
-  return duration /29 / 2;
+  return Timing()/29 / 2;
 }
 

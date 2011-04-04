@@ -142,10 +142,6 @@ pin_t RIGHT_PIN =  9;
 pin_t PUSHBUTTON_PIN = 10;
 // servo
 pin_t SENSOR_SERVO_PIN = 12;
-// analog adjustments
-pin_t FORWARD_POT_PIN = A5;
-pin_t REVERSE_POT_PIN = A4;
-// buttons
 
 /*****************************************************************************
  * TIMING RELATED
@@ -461,22 +457,22 @@ void full_stop() {
  *****************************************************************************/
 enum states {
   // start state
-  INITIAL = 'I',
-  FULL_SWEEP = 'Q',
+  INITIAL,
+  FULL_SWEEP,
   // units advancement
-  FORWARD_LEFT_UNIT = '1',
-  FORWARD_UNIT = '2',
-  FORWARD_RIGHT_UNIT = '3',
-  REVERSE_LEFT_UNIT = '4',
-  REVERSE_UNIT = '5',
-  REVERSE_RIGHT_UNIT = '6',
+  FORWARD_LEFT_UNIT,
+  FORWARD_UNIT,
+  FORWARD_RIGHT_UNIT,
+  REVERSE_LEFT_UNIT,
+  REVERSE_UNIT,
+  REVERSE_RIGHT_UNIT,
   // decision making
-  STANDSTILL_DECISION = '?',
+  STANDSTILL_DECISION,
   // end state
-  STUCK = 'K',
-  STOP = '.',
-  SMALL_TURN_CCW = '<',
-  SMALL_TURN_CW = '>',
+  STUCK,
+  STOP,
+  SMALL_TURN_CCW,
+  SMALL_TURN_CW,
 };
 
 enum_t current_state = STOP;
@@ -497,9 +493,7 @@ void setup() {
   pinMode(REVERSE_PIN, OUTPUT);    
   pinMode(LEFT_PIN, OUTPUT);  
   pinMode(RIGHT_PIN, OUTPUT);  
-  // input potentiometer
-  pinMode(FORWARD_POT_PIN, INPUT);
-  pinMode(REVERSE_POT_PIN, INPUT);
+
   //buttons
   pinMode(PUSHBUTTON_PIN, INPUT);
 
@@ -522,16 +516,11 @@ void setup() {
  * DECISION HELPERS
  *****************************************************************************/
 duration_ms_t get_forward_time_millis() {
-  duration_ms_t max_time = map(analogRead(FORWARD_POT_PIN), 0, 1024, MIN_TIME_UNIT_MILLIS, MAX_TIME_UNIT_MILLIS);
-  duration_ms_t time = map(current_max_distance_cm(), 0, SENSOR_MAX_RANGE_CM, MIN_TIME_UNIT_MILLIS, max_time);
-  return time;
+  1000;
 }
 
 duration_ms_t get_backward_time_millis() {
-  // same logic because we don't have a front sensor...
-  duration_ms_t max_time = map(analogRead(REVERSE_POT_PIN), 0, 1024, MIN_TIME_UNIT_MILLIS, MAX_TIME_UNIT_MILLIS);
-  duration_ms_t time = map(current_max_distance_cm(), 0, SENSOR_MAX_RANGE_CM, MIN_TIME_UNIT_MILLIS, max_time);
-  return time;
+  1000;
 }
 
 boolean is_safe_large_turn(enum_t sensor) {
@@ -821,9 +810,9 @@ void init_direction_unit(enum_t decision) {
 
 
 void handle_unit(enum_t sensor, Ultrasonic& sensor_object) {
-  if(timed_operation_expired(WAIT_FOR_ROBOT_TO_MOVE)) {
-    init_full_sweep();
-  }
+  //if(timed_operation_expired(WAIT_FOR_ROBOT_TO_MOVE)) {
+  //  init_full_sweep();
+  //}
   if(read_sensor(sensor, sensor_object) != NO_READING) {
     if(!is_safe_large_turn(SENSOR_FRONT)) {
       init_full_sweep();
