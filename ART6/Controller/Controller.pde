@@ -127,11 +127,13 @@ pin_t INFRARED_RIGHT_SIDE = A2;
 pin_t INFRARED_BACK = A1;
 
 // various directions we can go to
-pin_t COLLISION_PIN = 2;
-pin_t FORWARD_PIN =  3;      // the number of the LED pin
-pin_t REVERSE_PIN =  4;  
-pin_t LEFT_PIN = 5;  
-pin_t RIGHT_PIN =  6;  
+pin_t FORWARD_COLLISION_PIN = 2;
+pin_t REVERSE_COLLISION_PIN = 3;
+
+pin_t FORWARD_PIN =  4;      // the number of the LED pin
+pin_t REVERSE_PIN =  5;  
+pin_t LEFT_PIN = 6;  
+pin_t RIGHT_PIN =  7;  
 //pin_t PUSHBUTTON_PIN = 10;
 // servo
 
@@ -275,6 +277,22 @@ enum states {
 /*****************************************************************************
  * SETUP
  *****************************************************************************/
+ 
+void analogPullUp(pin_t pin) {
+  pinMode(pin, INPUT);
+  analogWrite(pin, HIGH);
+}
+
+void analogPullDown(pin_t pin) {
+  pinMode(pin, INPUT);
+  analogWrite(pin, LOW);
+}
+
+void digitalPullUp(pin_t pin) {
+  pinMode(pin, INPUT);
+  digitalWrite(pin, HIGH);
+}
+
 void setup() { 
   // make sure we get all error message output
   Serial.begin(9600);
@@ -287,16 +305,23 @@ void setup() {
   pinMode(REVERSE_PIN, OUTPUT);    
   pinMode(LEFT_PIN, OUTPUT);  
   pinMode(RIGHT_PIN, OUTPUT);  
-  //pinMode(COLLISION_PIN, INPUT);  
-  //buttons
-  //pinMode(PUSHBUTTON_PIN, INPUT);
-
+  
+  digitalPullUp(FORWARD_COLLISION_PIN);
+  digitalPullUp(REVERSE_COLLISION_PIN);
+  
+  /*analogPullUp(INFRARED_LEFT);
+  analogPullUp(INFRARED_RIGHT);
+  analogPullUp(INFRARED_LEFT_SIDE);
+  analogPullUp(INFRARED_RIGHT_SIDE);
+  analogPullUp(INFRARED_BACK);*/
+    
   Serial.println("Full stop");
   full_stop();
   Serial.print("ART SETUP COMPLETED ");
   Serial.println(millis());
   
-  attachInterrupt(0, collision_detected, CHANGE);
+  attachInterrupt(0, forward_collision_detected, FALLING);
+  attachInterrupt(1, reverse_collision_detected, FALLING);
 }
 
 
@@ -319,13 +344,17 @@ boolean stopped;
 int go_right = 0;
 int go_left = 0;
 volatile int go_forward = 0;
-int go_reverse = 0;
+volatile int go_reverse = 0;
 volatile int collisions = 0;
 
-void collision_detected() {
+void forward_collision_detected() {
+  digitalWrite(FORWARD_PIN, LOW);   
   go_forward = 0;
-  collisions++;
-  Serial.println("!");
+}
+
+void reverse_collision_detected() {
+  digitalWrite(REVERSE_PIN, LOW);   
+  go_reverse = 0;
 }
 
 void loop(){  
