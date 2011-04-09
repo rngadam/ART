@@ -8,3 +8,4 @@ Computer: Arduino Uno
 Characteristics: hacked inexpensive RC car, self-driving, forward and reverse fast interrupt-driven collision detection
 Cost to build: ~425 RMB (~USD$65)
 Code: https://github.com/rngadam/ART/tree/master/ART6
+Video: http://v.youku.com/v_show/id_XMjU2NTQwMDky.html
