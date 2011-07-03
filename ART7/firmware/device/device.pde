@@ -49,41 +49,47 @@ const byte FORWARD_INTERRUPT = 2; // pin 21
 pin_t SENSOR_FORWARD_PIN = 21;
 
 typedef union {
-  boolean obstacles[8];
+  struct  {
+    unsigned forward_left:1;
+    unsigned forward_right:1;
+    unsigned left:1;
+    unsigned right:1;
+    unsigned backward:1;
+    unsigned forward:1;
+  } obstacles;
   byte data;
-} 
-obstacle_detected_t;
+} obstacle_detected_t;
 
 obstacle_detected_t collisions;
 
 void forward_left() {
   Serial.println("forward_left");
-  collisions.obstacles[FORWARD_LEFT_INTERRUPT] = digitalRead(SENSOR_FORWARD_LEFT_PIN);
+  collisions.obstacles.forward_left = digitalRead(SENSOR_FORWARD_LEFT_PIN);
 }
 
 void forward_right() {
   Serial.println("forward_right");
-  collisions.obstacles[FORWARD_RIGHT_INTERRUPT] = digitalRead(SENSOR_FORWARD_RIGHT_PIN);
+  collisions.obstacles.forward_right = digitalRead(SENSOR_FORWARD_RIGHT_PIN);
 }
 
 void left() {
   Serial.println("left");
-  collisions.obstacles[LEFT_INTERRUPT] = digitalRead(SENSOR_LEFT_PIN);
+  collisions.obstacles.left = digitalRead(SENSOR_LEFT_PIN);
 }
 
 void right() {
   Serial.println("right");
-  collisions.obstacles[RIGHT_INTERRUPT] = digitalRead(SENSOR_RIGHT_PIN);
+  collisions.obstacles.right = digitalRead(SENSOR_RIGHT_PIN);
 }
 
 void backward() {
   Serial.println("backward");
-  collisions.obstacles[BACKWARD_INTERRUPT] = digitalRead(SENSOR_BACKWARD_PIN);
+  collisions.obstacles.backward = digitalRead(SENSOR_BACKWARD_PIN);
 }
 
 void forward() {
   Serial.println("forward");
-  collisions.obstacles[FORWARD_INTERRUPT] = digitalRead(SENSOR_FORWARD_PIN);
+  collisions.obstacles.forward = digitalRead(SENSOR_FORWARD_PIN);
 }
 
 void sink(byte pin) {
@@ -110,11 +116,11 @@ void setup() {
   input(BACKWARD_INTERRUPT);
   //input(FORWARD_INTERRUPT);
 
-  attachInterrupt(FORWARD_LEFT_INTERRUPT, forward_left, FALLING);
-  attachInterrupt(FORWARD_RIGHT_INTERRUPT, forward_right, FALLING);
-  attachInterrupt(LEFT_INTERRUPT, left, FALLING);
-  attachInterrupt(RIGHT_INTERRUPT, right, FALLING);
-  attachInterrupt(BACKWARD_INTERRUPT, backward, FALLING);
+  attachInterrupt(FORWARD_LEFT_INTERRUPT, forward_left, CHANGE);
+  //attachInterrupt(FORWARD_RIGHT_INTERRUPT, forward_right, FALLING);
+  attachInterrupt(LEFT_INTERRUPT, left, CHANGE);
+  attachInterrupt(RIGHT_INTERRUPT, right, CHANGE);
+  attachInterrupt(BACKWARD_INTERRUPT, backward, CHANGE);
   //attachInterrupt(FORWARD_INTERRUPT, forward, LOW);
   acc.powerOn();
 }
@@ -198,6 +204,7 @@ void loop() {
   static byte count = 0;
   byte msg[3];
   long touchcount;
+  static byte last_collisions_data = 0;
 
   if (acc.isConnected()) {  
     int len = acc.read(msg, sizeof(msg), 1);    
@@ -243,9 +250,13 @@ void loop() {
         Serial.println("Invalid command sent");
       }
     }
-    msg[0] = 0x1;
-    msg[1] = collisions.data;
-    acc.write(msg, 2);
+    if(collisions.data != last_collisions_data) {
+      msg[0] = 0x1;
+      msg[1] = collisions.data;
+      acc.write(msg, 2);
+      last_collisions_data =  collisions.data;
+      Serial.println("Sending updated message for collisions");
+    }
   }
 }
 

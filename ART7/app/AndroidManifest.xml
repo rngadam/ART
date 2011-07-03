@@ -20,7 +20,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-		<activity android:name="UsbAccessoryActivity" android:label="DemoKit"
+		<activity android:name="UsbAccessoryActivity" android:label="ART"
 			android:taskAffinity="" android:launchMode="singleInstance">
 			<intent-filter>
 				<action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />

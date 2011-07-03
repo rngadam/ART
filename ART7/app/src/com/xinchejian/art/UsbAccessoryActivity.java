@@ -39,7 +39,7 @@ public final class UsbAccessoryActivity extends Activity {
 		try {
 			startActivity(intent);
 		} catch (ActivityNotFoundException e) {
-			Log.e(TAG, "unable to start DemoKit activity", e);
+			Log.e(TAG, "unable to start ART activity", e);
 		}
 		finish();
 	}

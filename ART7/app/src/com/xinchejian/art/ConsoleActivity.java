@@ -31,7 +31,7 @@ import android.widget.TextView;
 import android.widget.ToggleButton;
 
 public class ConsoleActivity extends Activity implements Runnable {
-	private static final String ACTION_USB_PERMISSION = "com.google.android.DemoKit.action.USB_PERMISSION";
+	private static final String ACTION_USB_PERMISSION = "com.xinchejian.art.action.USB_PERMISSION";
 
 	private static final byte BACKWARD_INFRARED = 1<<6;
 
