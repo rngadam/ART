@@ -175,7 +175,7 @@ bitmask8_t current_command = 0;
 /*
 Makes sure that exclusive directions are prohibited
  */
-void go(enum_t  dir) {
+void go(enum_t dir) {
   switch(dir) {
   case FORWARD:
     digitalWrite(REVERSE_PIN, LOW);

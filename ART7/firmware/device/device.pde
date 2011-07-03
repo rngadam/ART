@@ -110,11 +110,11 @@ void setup() {
   input(BACKWARD_INTERRUPT);
   //input(FORWARD_INTERRUPT);
 
-  attachInterrupt(FORWARD_LEFT_INTERRUPT, forward_left, CHANGE);
-  attachInterrupt(FORWARD_RIGHT_INTERRUPT, forward_right, CHANGE);
-  attachInterrupt(LEFT_INTERRUPT, left, CHANGE);
-  attachInterrupt(RIGHT_INTERRUPT, right, CHANGE);
-  attachInterrupt(BACKWARD_INTERRUPT, backward, CHANGE);
+  attachInterrupt(FORWARD_LEFT_INTERRUPT, forward_left, FALLING);
+  attachInterrupt(FORWARD_RIGHT_INTERRUPT, forward_right, FALLING);
+  attachInterrupt(LEFT_INTERRUPT, left, FALLING);
+  attachInterrupt(RIGHT_INTERRUPT, right, FALLING);
+  attachInterrupt(BACKWARD_INTERRUPT, backward, FALLING);
   //attachInterrupt(FORWARD_INTERRUPT, forward, LOW);
   acc.powerOn();
 }

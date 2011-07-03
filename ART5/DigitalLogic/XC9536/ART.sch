@@ -52,7 +52,6 @@
         <signal name="EchoSonar" />
         <signal name="TriggerSonar" />
         <signal name="XLXN_340" />
-        <signal name="XLXN_423" />
         <signal name="XLXN_396" />
         <signal name="XLXN_398" />
         <signal name="SONARSEL0" />
