@@ -37,14 +37,19 @@ pin_t FORWARD_PIN = 3;
 // 6 interrupts for 5 infrared sensors + AND gate for forward
 interrupt_t LEFT_INTERRUPT = 0; // digital pin 2
 pin_t SENSOR_LEFT_PIN = 2;
+
 interrupt_t RIGHT_INTERRUPT = 1; // digital pin 3
 pin_t SENSOR_RIGHT_PIN = 3;
+
 interrupt_t BACKWARD_INTERRUPT = 5; // pin 18
 pin_t SENSOR_BACKWARD_PIN = 18;
-interrupt_t FORWARD_RIGHT_INTERRUPT = 4; // pin 19
-pin_t SENSOR_FORWARD_RIGHT_PIN = 19;
-interrupt_t FORWARD_LEFT_INTERRUPT = 3; // pin 20
-pin_t SENSOR_FORWARD_LEFT_PIN = 20;
+
+interrupt_t FORWARD_LEFT_INTERRUPT = 4; // pin 19
+pin_t SENSOR_FORWARD_LEFT_PIN = 19;
+
+interrupt_t FORWARD_RIGHT_INTERRUPT = 3; // pin 20
+pin_t SENSOR_FORWARD_RIGHT_PIN = 20;
+
 const byte FORWARD_INTERRUPT = 2; // pin 21
 pin_t SENSOR_FORWARD_PIN = 21;
 
@@ -60,36 +65,36 @@ typedef union {
   byte data;
 } obstacle_detected_t;
 
-obstacle_detected_t collisions;
+volatile obstacle_detected_t collisions;
 
 void forward_left() {
   Serial.println("forward_left");
-  collisions.obstacles.forward_left = digitalRead(SENSOR_FORWARD_LEFT_PIN);
+  collisions.obstacles.forward_left = !digitalRead(SENSOR_FORWARD_LEFT_PIN);
 }
 
 void forward_right() {
   Serial.println("forward_right");
-  collisions.obstacles.forward_right = digitalRead(SENSOR_FORWARD_RIGHT_PIN);
+  collisions.obstacles.forward_right = !digitalRead(SENSOR_FORWARD_RIGHT_PIN);
 }
 
 void left() {
   Serial.println("left");
-  collisions.obstacles.left = digitalRead(SENSOR_LEFT_PIN);
+  collisions.obstacles.left = !digitalRead(SENSOR_LEFT_PIN);
 }
 
 void right() {
   Serial.println("right");
-  collisions.obstacles.right = digitalRead(SENSOR_RIGHT_PIN);
+  collisions.obstacles.right = !digitalRead(SENSOR_RIGHT_PIN);
 }
 
 void backward() {
   Serial.println("backward");
-  collisions.obstacles.backward = digitalRead(SENSOR_BACKWARD_PIN);
+  collisions.obstacles.backward = !digitalRead(SENSOR_BACKWARD_PIN);
 }
 
 void forward() {
   Serial.println("forward");
-  collisions.obstacles.forward = digitalRead(SENSOR_FORWARD_PIN);
+  collisions.obstacles.forward = !digitalRead(SENSOR_FORWARD_PIN);
 }
 
 void sink(byte pin) {
@@ -117,12 +122,13 @@ void setup() {
   //input(FORWARD_INTERRUPT);
 
   attachInterrupt(FORWARD_LEFT_INTERRUPT, forward_left, CHANGE);
-  //attachInterrupt(FORWARD_RIGHT_INTERRUPT, forward_right, FALLING);
-  attachInterrupt(LEFT_INTERRUPT, left, CHANGE);
-  attachInterrupt(RIGHT_INTERRUPT, right, CHANGE);
-  attachInterrupt(BACKWARD_INTERRUPT, backward, CHANGE);
+  attachInterrupt(FORWARD_RIGHT_INTERRUPT, forward_right, CHANGE);
+  //attachInterrupt(LEFT_INTERRUPT, left, CHANGE);
+  //attachInterrupt(RIGHT_INTERRUPT, right, CHANGE);
+  //attachInterrupt(BACKWARD_INTERRUPT, backward, CHANGE);
   //attachInterrupt(FORWARD_INTERRUPT, forward, LOW);
   acc.powerOn();
+  collisions.data = 0;
 }
 
 /*****************************************************************************
@@ -198,15 +204,19 @@ void full_stop() {
   suspend(RIGHT);
 }
 
+int last_collisions_data = -1; // want this to update at least once on startup
+byte count = 0;
+boolean firstConnect = true;
+
 void loop() {
   byte err;
   byte idle;
-  static byte count = 0;
   byte msg[3];
   long touchcount;
-  static byte last_collisions_data = 0;
 
+  
   if (acc.isConnected()) {  
+
     int len = acc.read(msg, sizeof(msg), 1);    
     if(len > 0) {
       /**
@@ -250,14 +260,20 @@ void loop() {
         Serial.println("Invalid command sent");
       }
     }
-    if(collisions.data != last_collisions_data) {
+    if(collisions.data != last_collisions_data || firstConnect) {
       msg[0] = 0x1;
       msg[1] = collisions.data;
       acc.write(msg, 2);
-      last_collisions_data =  collisions.data;
-      Serial.println("Sending updated message for collisions");
+      last_collisions_data = collisions.data;
+      Serial.print("Sending updated message for collisions ");
+      Serial.println(collisions.data, DEC);
+      Serial.flush();
     }
+    firstConnect = false;    
+  } else {
+    firstConnect = true;
   }
+  
 }
 
 

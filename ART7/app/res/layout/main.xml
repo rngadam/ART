@@ -18,7 +18,7 @@
 	        <TextView android:text="TextView" android:id="@+id/textViewIp" android:layout_width="wrap_content" android:layout_height="wrap_content"></TextView>
 	        <ToggleButton android:text="ToggleButton" android:id="@+id/toggleButtonAccessoryOpened" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textOn="@string/acc_connected" android:textOff="@string/acc_disconnected"></ToggleButton>
 	        <ToggleButton android:textOn="@string/thread_running" android:textOff="@string/thread_stopped" android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/toggleButtonThreadState" android:text="ToggleButton"></ToggleButton>
-	        <ProgressBar android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/progressBarMessages" android:indeterminate="false" style="@android:style/Widget.ProgressBar.Horizontal"></ProgressBar>
+	        <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="TextView" android:id="@+id/textViewMessages"></TextView>
         </TableRow>
     </TableLayout>
 </LinearLayout>
