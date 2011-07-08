@@ -17,8 +17,8 @@ import android.os.IBinder;
 import android.util.Log;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
-import android.widget.RadioGroup;
 import android.widget.SeekBar;
+import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
@@ -54,12 +54,12 @@ public class ConsoleActivity extends Activity {
 			previousValue = !currentValue;
 		}
 		
-		if(currentValue != previousValue) {
+		if(!currentValue.equals(previousValue)) {
 			Log.d(TAG, "Updating ToggleButton " + toggleButton.getText() + " to " + currentValue);
-			if(currentValue) {
-				toggleButton.setBackgroundColor(Color.RED);
+			if(currentValue.booleanValue()) {
+				toggleButton.setTextColor(Color.RED);
 			} else {
-				toggleButton.setBackgroundColor(Color.WHITE);
+				toggleButton.setTextColor(Color.BLACK);
 			}
 			toggleButton.postInvalidate();
 			toggles.put(key, currentValue);
@@ -71,12 +71,13 @@ public class ConsoleActivity extends Activity {
 
 	Runnable stateUpdate = new Runnable() {
 		public void run() {
-			toggleButtonThreadState.setChecked(robotServiceClient.isThreadRunning());
-			radioGroupAccessory.check(robotServiceClient.getCurrentState());
-			textViewIp.setText(robotServiceClient.getLocalIpAddress());
-			int messagesReceived = robotServiceClient.getMessagesReceived();
-			textViewMessages.setText("" + (messagesReceived - messagesLastUiUpdate)/(UI_UPDATE_RATE_MS/1000) + " Hz\n" + messagesReceived);
-			messagesLastUiUpdate = messagesReceived;
+			if(robotServiceClient != null) {
+				textViewState.setText(robotServiceClient.getCurrentStateName());
+				textViewIp.setText(robotServiceClient.getLocalIpAddress());
+				int messagesReceived = robotServiceClient.getMessagesReceived();
+				textViewMessages.setText("" + (messagesReceived - messagesLastUiUpdate)/(UI_UPDATE_RATE_MS/1000) + " Hz\n" + messagesReceived);
+				messagesLastUiUpdate = messagesReceived;
+			}
 			stateUpdateHandler.postDelayed(stateUpdate, UI_UPDATE_RATE_MS);		
 		}
 	};
@@ -84,26 +85,20 @@ public class ConsoleActivity extends Activity {
 	Handler stateUpdateHandler = new Handler();
 	
 	private TextView textViewIp;
-	private ToggleButton toggleButtonAccessoryOpened;
 	private ToggleButton toggleButtonBackward;
 	private ToggleButton toggleButtonForward;
 	private ToggleButton toggleButtonForwardLeft;
 	private ToggleButton toggleButtonForwardRight;
 	private ToggleButton toggleButtonLeft;
 	private ToggleButton toggleButtonRight;
-	private ToggleButton toggleButtonThreadState;
 	private TextView textViewMessages;
-	private RadioGroup radioGroupAccessory;
+	private TextView textViewState;
 	private ToggleButton toggleButtonNeutral;
 	private ToggleButton toggleButtonBackwardLeft;
 	private ToggleButton toggleButtonBackwardRight;
 	private ToggleButton lastToggleButton;
 	
 	protected RobotServiceClient robotServiceClient;
-
-	protected void enableControls(boolean enable) {
-		toggleButtonAccessoryOpened.setChecked(enable);
-	}
 
 	private ServiceConnection mConnection = new ServiceConnection() {
 		public void onServiceConnected(ComponentName className, IBinder service) {
@@ -122,6 +117,7 @@ public class ConsoleActivity extends Activity {
 			robotServiceClient = null;
 		}
 	};
+	private TableLayout tableLayout;
 
 	
 	public void bindToRobotService() {
@@ -154,6 +150,8 @@ public class ConsoleActivity extends Activity {
 		}, filter);
 		bindToRobotService();
 		setContentView(R.layout.main);
+		tableLayout = (TableLayout) findViewById(R.id.tableLayout1);
+
 		toggleButtonForwardLeft = getToggleButton(R.id.toggleButtonForwardLeft, RobotService.directions.FORWARD_LEFT);
 		toggleButtonForward = getToggleButton(R.id.toggleButtonForward, RobotService.directions.FORWARD);
 		toggleButtonForwardRight = getToggleButton(R.id.toggleButtonForwardRight, RobotService.directions.FORWARD_RIGHT);
@@ -163,16 +161,18 @@ public class ConsoleActivity extends Activity {
 		toggleButtonBackwardLeft = getToggleButton(R.id.toggleButtonBackwardLeft, RobotService.directions.REVERSE_LEFT);
 		toggleButtonBackward = getToggleButton(R.id.toggleButtonBackward,  RobotService.directions.REVERSE);
 		toggleButtonBackwardRight = getToggleButton(R.id.toggleButtonBackwardRight, RobotService.directions.REVERSE_RIGHT);
-		
 		textViewIp = (TextView) findViewById(R.id.textViewIp);
 		textViewMessages = (TextView) findViewById(R.id.textViewMessages);
-		radioGroupAccessory = (RadioGroup) findViewById(R.id.radioGroupAccessory);
-		enableControls(false);
+		textViewState = (TextView) findViewById(R.id.textViewState);
+		tableLayout.setShrinkAllColumns(true);
+		tableLayout.setStretchAllColumns(true);
+		
 		stateUpdateHandler.postDelayed(stateUpdate, 1000);
 	}
 
 	private ToggleButton getToggleButton(int id, final directions direction) {
 		final ToggleButton toggleButton = (ToggleButton) findViewById(id);
+		
 		toggleButton.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 			public void onCheckedChanged(CompoundButton buttonView,
 					boolean isChecked) {
@@ -181,6 +181,7 @@ public class ConsoleActivity extends Activity {
 				}
 				lastToggleButton.setChecked(false);
 				lastToggleButton = toggleButton;
+
 			}
 		});
 		return toggleButton;

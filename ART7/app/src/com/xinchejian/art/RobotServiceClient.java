@@ -13,10 +13,6 @@ public class RobotServiceClient {
 		this.service = service;
 	}
 
-	public boolean isThreadRunning() {
-		return service.isThreadRunning();
-	}
-
 	public int getMessagesReceived() {
 		return service.getMessagesReceived();
 	}
@@ -27,5 +23,10 @@ public class RobotServiceClient {
 
 	public void go(directions direction) {
 		service.go(direction);
+	}
+
+	public String getCurrentStateName() {
+		// TODO Auto-generated method stub
+		return service.getCurrentStateName();
 	}
 }

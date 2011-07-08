@@ -72,6 +72,7 @@ public class RobotService extends Service {
 	private boolean isThreadRunning = false;
 
 	private states currentState = states.STARTING_THREAD;
+	private directions nextDirection = directions.NEUTRAL;
 	
 	// Binder given to clients
 	private final IBinder binder = new LocalBinder();
@@ -99,27 +100,35 @@ public class RobotService extends Service {
 		WAITING_FOR_CLIENT_BIND, 
 		WAITING_FOR_OPENED_ACCESSORY, 
 		PROCESSING,
-		WAITING_FOR_CLOSED_ACCESSORY, 
+		WAITING_FOR_CLOSED_ACCESSORY, WAITING_FOR_RESET, 
 	};
 	
 	private Runnable backgroundProcessing = new Runnable() {
+		private int stateChangeCount;
+		private long lastCheckStateChangeCount;
+
 		public void run() {
 			isThreadRunning = true;
 
+			usbManager = UsbManager.getInstance(RobotService.this);
 			while(isThreadRunning) {
+				states beforeLoopState = currentState;
 				lock.lock();
 				try {
 					switch(currentState) {
-					case STARTING_THREAD: // up to now, no threads were available
-						currentState = states.WAITING_FOR_USB_ATTACHED;
+					case STARTING_THREAD:
+						currentState = states.WAITING_FOR_ACCESSORY;
 						break;
 					case WAITING_FOR_ACCESSORY:
 						UsbAccessory[] accessories = usbManager.getAccessoryList();
 						accessory = (accessories == null ? null : accessories[0]);
 						if(accessory != null) {
+							isUsbAttached = true;
 							if(usbManager.hasPermission(accessory)) {
 								currentState = states.WAITING_FOR_CLIENT_BIND;								
 							} else {
+								permissionIntent = PendingIntent.getBroadcast(RobotService.this, 0, new Intent(
+										ACTION_USB_PERMISSION), 0);
 								usbManager.requestPermission(accessory, permissionIntent);							
 								currentState = states.WAITING_FOR_PERMISSION;
 							}
@@ -136,6 +145,9 @@ public class RobotService extends Service {
 						}
 						break;
 					case WAITING_FOR_PERMISSION:
+						if(!isUsbAttached) {
+							currentState = states.WAITING_FOR_CLOSED_ACCESSORY;
+						}
 						if(isPermissionGiven) {
 							currentState = states.WAITING_FOR_CLIENT_BIND;
 						} else {
@@ -143,12 +155,19 @@ public class RobotService extends Service {
 						}
 						break;
 					case WAITING_FOR_CLIENT_BIND:
+						if(!isUsbAttached) {
+							currentState = states.WAITING_FOR_CLOSED_ACCESSORY;
+						}						
 						if(isClientBinded) {
 							currentState = states.WAITING_FOR_OPENED_ACCESSORY;
 						} else {
 							clientBinded.await();
 						}
+						break;
 					case WAITING_FOR_OPENED_ACCESSORY:
+						if(!isUsbAttached) {
+							currentState = states.WAITING_FOR_CLOSED_ACCESSORY;
+						}						
 						if(openAccessory(accessory)) {
 							currentState = states.PROCESSING;
 						} else {
@@ -156,22 +175,46 @@ public class RobotService extends Service {
 						}
 						break;
 					case PROCESSING:
+						if(!isUsbAttached) {
+							currentState = states.WAITING_FOR_CLOSED_ACCESSORY;
+						}						
 						if(!isClientBinded) {
 							currentState = states.WAITING_FOR_CLOSED_ACCESSORY;
-						}
-						if(!process()) {
-							currentState = states.WAITING_FOR_ACCESSORY;
 						}
 						break;
 					case WAITING_FOR_CLOSED_ACCESSORY:
 						closeAccessory();
-						currentState = states.WAITING_FOR_CLIENT_BIND;
+						currentState = states.WAITING_FOR_ACCESSORY;
+						break;
+					case WAITING_FOR_RESET:
+						if(!isUsbAttached) {
+							currentState = states.WAITING_FOR_ACCESSORY;
+						} else {
+							usbAttached.await();
+						}						
 						break;
 					}	
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				} finally {
 					lock.unlock();
+				}
+				// need to this outside the lock as the read is blocking...
+				if(currentState.equals(states.PROCESSING) && !process()) {
+					currentState = states.WAITING_FOR_ACCESSORY;
+				}
+				
+				if(!beforeLoopState.equals(currentState)) {
+					stateChangeCount++;
+					if((System.currentTimeMillis() - lastCheckStateChangeCount) > 5000) {
+						if(stateChangeCount > 10) {
+							Log.e(TAG, "Max change count reached, waiting for reset");
+							currentState = states.WAITING_FOR_RESET;
+						}
+						stateChangeCount = 0;
+						lastCheckStateChangeCount = System.currentTimeMillis();
+					}
+					Log.d(TAG, "Going from state " + beforeLoopState.name() + " to " + currentState.name());
 				}
 			} // while(isThreadRunning()
 			unregisterReceiver(usbReceiver);
@@ -183,7 +226,10 @@ public class RobotService extends Service {
 			int i;
 			while (ret >= 0) {
 				try {
-					ret = inputStream.read(buffer);
+					if(inputStream.available() != 0) {
+						Log.d(TAG, "Starting blocking read");
+						ret = inputStream.read(buffer);
+					}
 				} catch (IOException e) {
 					Log.e(TAG, "Could not read from input stream", e);
 					return false;
@@ -231,13 +277,14 @@ public class RobotService extends Service {
 		Log.d(TAG, "onCreate");
 		usbManager = UsbManager.getInstance(this);
 		setupUsbReceiver();
+		startBackgroundThread();
 	}
 
 
 	@Override
-	public void onStart(Intent intent, int startId) {
-		super.onStart(intent, startId);
-		startBackgroundThread();
+	public int onStartCommand(Intent intent, int startId, int i) {
+		Log.d(TAG, "onStartCommand");
+		return super.onStartCommand(intent, startId, i);
 	}
 	
 	@Override
@@ -264,9 +311,7 @@ public class RobotService extends Service {
 	}
 
 	private void setupUsbReceiver() {
-		usbManager = UsbManager.getInstance(this);
-		permissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(
-				ACTION_USB_PERMISSION), 0);
+		Log.d(TAG, "Registering listener");
 		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
 		filter.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
 		filter.addAction(UsbManager.ACTION_USB_ACCESSORY_ATTACHED);
@@ -291,6 +336,7 @@ public class RobotService extends Service {
 			String action = intent.getAction();
 			accessory = UsbManager.getAccessory(intent);
 			if (ACTION_USB_PERMISSION.equals(action)) {
+				Log.d(TAG, "USB Permission received");
 				lock.lock();
 				try {
 					isPermissionGiven = intent.getBooleanExtra(
@@ -300,6 +346,7 @@ public class RobotService extends Service {
 					lock.unlock();
 				}
 			} else if(UsbManager.ACTION_USB_ACCESSORY_ATTACHED.equals(action)) {
+				Log.d(TAG, "USB Attached received");				
 				lock.lock();
 				try {
 					isUsbAttached = true;
@@ -308,22 +355,31 @@ public class RobotService extends Service {
 					lock.unlock();			
 				}
 			} else if (UsbManager.ACTION_USB_ACCESSORY_DETACHED.equals(action)) {
+				Log.d(TAG, "USB Detached received");					
 				lock.lock();
 				try {
 					isUsbAttached = false;
 					usbAttached.signal();
+					closeAccessory();
 				} finally {
 					lock.unlock();			
 				}
+				Log.d(TAG, "USB Detached handling completed");	
 			} else {
 				Log.d(TAG, "Unhandled onReceive action " + action);
 			}
 		}
 	};
-	private directions nextDirection;
+
 	
 	private void closeAccessory() {
 		try {
+			if(inputStream != null) {
+				inputStream.close();
+			}
+			if(outputStream != null) {
+				outputStream.close();
+			}
 			if (fileDescriptor != null) {
 				fileDescriptor.close();
 			}
@@ -344,20 +400,27 @@ public class RobotService extends Service {
 			Log.e(TAG, "USB Manager not running - are you connected?");
 			return false;
 		}
-		fileDescriptor = usbManager.openAccessory(accessory);
-		if (fileDescriptor != null) {
-			FileDescriptor fd = fileDescriptor.getFileDescriptor();
-			inputStream = new FileInputStream(fd);
-			outputStream = new FileOutputStream(fd);
-			Log.d(TAG, "accessory opened");
-			return true;
-		} else {
-			Log.e(TAG, "accessory open fail");
+		try {
+			fileDescriptor = usbManager.openAccessory(accessory);
+			if (fileDescriptor != null) {
+				FileDescriptor fd = fileDescriptor.getFileDescriptor();
+				inputStream = new FileInputStream(fd);
+				outputStream = new FileOutputStream(fd);
+				Log.d(TAG, "accessory opened");
+				return true;
+			} else {
+				Log.e(TAG, "accessory open failed to return a file descriptor");
+				return false;
+			}
+		} catch(IllegalArgumentException e) {
+			Log.e(TAG, "accessory open failed on bad accessory", e);
 			return false;
+			
 		}
 	}
 	
 	private boolean sendCommand(byte command, byte target, int value) {
+		Log.d(TAG, "Sending command " + command);
 		byte[] buffer = new byte[3];
 		if (value > 255)
 			value = 255;
@@ -412,5 +475,10 @@ public class RobotService extends Service {
 
 	public void go(directions direction) {
 		nextDirection = direction;
+	}
+
+	public String getCurrentStateName() {
+		// TODO Auto-generated method stub
+		return currentState.name();
 	}	
 }
