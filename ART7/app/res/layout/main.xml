@@ -4,21 +4,38 @@
     android:layout_height="fill_parent"
     android:orientation="horizontal">
     <TableLayout android:id="@+id/tableLayout1" android:layout_height="match_parent" android:layout_width="match_parent">
-        <ToggleButton android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/forward" android:textOff="@string/forward" android:textOn="@string/forward" android:id="@+id/toggleButtonForward"></ToggleButton>
         <TableRow android:layout_gravity="center" android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/tableRow1" android:gravity="center">
+        <ToggleButton android:id="@+id/toggleButtonForward" android:textOn="@string/forward" android:textOff="@string/forward" android:text="@string/forward" android:layout_height="wrap_content" android:layout_width="wrap_content"></ToggleButton>
             <ToggleButton android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/forward_left" android:textOff="@string/forward_left" android:textOn="@string/forward_left" android:id="@+id/toggleButtonForwardLeft"></ToggleButton>
             <ToggleButton android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/forward_right" android:textOff="@string/forward_right" android:textOn="@string/forward_right" android:id="@+id/toggleButtonForwardRight"></ToggleButton>
         </TableRow>
         <TableRow android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/tableRow2" android:gravity="center_horizontal">
             <ToggleButton android:text="@string/left_side" android:layout_height="wrap_content" android:layout_width="wrap_content" android:textOn="@string/left_side" android:textOff="@string/left_side" android:id="@+id/toggleButtonLeftSide"></ToggleButton>
+            <ToggleButton android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/right_side" android:textOff="@string/neutral" android:textOn="@string/neutral" android:id="@+id/toggleButtonNeutral"></ToggleButton>
             <ToggleButton android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/right_side" android:textOff="@string/right_side" android:textOn="@string/right_side" android:id="@+id/toggleButtonRightSide"></ToggleButton>
         </TableRow>
-        <ToggleButton android:text="@string/backward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textOff="@string/backward" android:textOn="@string/backward" android:id="@+id/toggleButtonBackward"></ToggleButton>
+        <TableRow>
+       	 <ToggleButton android:text="@string/backward_left" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textOff="@string/backward_left" android:textOn="@string/backward_left" android:id="@+id/toggleButtonBackwardLeft"></ToggleButton>
+       	 <ToggleButton android:text="@string/backward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textOff="@string/backward" android:textOn="@string/backward" android:id="@+id/toggleButtonBackward"></ToggleButton>
+       	 <ToggleButton android:text="@string/backward_right" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textOff="@string/backward_right" android:textOn="@string/backward_right" android:id="@+id/toggleButtonBackwardRight"></ToggleButton>
+        </TableRow>
         <TableRow android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/tableRow3" android:gravity="center_horizontal">
 	        <TextView android:text="TextView" android:id="@+id/textViewIp" android:layout_width="wrap_content" android:layout_height="wrap_content"></TextView>
-	        <ToggleButton android:text="ToggleButton" android:id="@+id/toggleButtonAccessoryOpened" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textOn="@string/acc_connected" android:textOff="@string/acc_disconnected"></ToggleButton>
-	        <ToggleButton android:textOn="@string/thread_running" android:textOff="@string/thread_stopped" android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/toggleButtonThreadState" android:text="ToggleButton"></ToggleButton>
-	        <TextView android:layout_height="wrap_content" android:layout_width="wrap_content" android:text="TextView" android:id="@+id/textViewMessages"></TextView>
+	        <TextView android:layout_width="wrap_content" android:id="@+id/textViewMessages" android:text="TextView" android:layout_height="wrap_content"></TextView>
+        </TableRow>
+        <TableRow android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/tableRow3" android:gravity="center_horizontal">
+        </TableRow>
+        <TableRow android:layout_height="wrap_content" android:layout_width="wrap_content" android:id="@+id/tableRow3" android:gravity="center_horizontal">
+        <RadioGroup android:id="@+id/radioGroupAccessory" android:layout_width="wrap_content" android:layout_height="wrap_content">
+            <RadioButton android:layout_width="wrap_content" android:id="@+id/radio0" android:text="STARTING_THREAD" android:layout_height="wrap_content" android:checked="true"></RadioButton>
+            <RadioButton android:layout_width="wrap_content" android:id="@+id/radio1" android:text="WAITING_FOR_USB_ATTACHED" android:layout_height="wrap_content"></RadioButton>
+            <RadioButton android:layout_width="wrap_content" android:id="@+id/radio2" android:text="WAITING_FOR_ACCESSORY" android:layout_height="wrap_content"></RadioButton>
+            <RadioButton android:layout_width="wrap_content" android:id="@+id/radio2" android:text="WAITING_FOR_PERMISSION" android:layout_height="wrap_content"></RadioButton>
+            <RadioButton android:layout_width="wrap_content" android:id="@+id/radio3" android:text="WAITING_FOR_CLIENT_BIND" android:layout_height="wrap_content"></RadioButton>
+            <RadioButton android:layout_width="wrap_content" android:id="@+id/radio4" android:text="WAITING_FOR_OPENED_ACCESSORY" android:layout_height="wrap_content"></RadioButton>
+            <RadioButton android:layout_width="wrap_content" android:id="@+id/radio5" android:text="PROCESSING" android:layout_height="wrap_content"></RadioButton>
+            <RadioButton android:layout_width="wrap_content" android:id="@+id/radio6" android:text="WAITING_FOR_CLOSED_ACCESSORY" android:layout_height="wrap_content"></RadioButton>
+        </RadioGroup>
         </TableRow>
     </TableLayout>
 </LinearLayout>

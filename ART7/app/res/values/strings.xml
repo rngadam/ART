@@ -2,14 +2,19 @@
 <resources>
     <string name="hello">Hello World, ConsoleActivity!</string>
     <string name="app_name">ART</string>
-    <string name="forward">Forward</string>
-    <string name="left_side">Left Side</string>
-    <string name="right_side">Right Side</string>
-    <string name="forward_left">Forward Left</string>
-    <string name="forward_right">Forward right</string>
-    <string name="backward">Backward</string>
+    <string name="forward">FWD</string>
+    <string name="left_side">LS</string>
+    <string name="right_side">RS</string>
+    <string name="forward_left">FL</string>
+    <string name="forward_right">FR</string>
+    <string name="backward">BWD</string>
     <string name="acc_connected">Connected</string>
     <string name="acc_disconnected">Disconnected</string>
     <string name="thread_running">Processing</string>
     <string name="thread_stopped">Stopped</string>
+    <string name="exit">Exit</string>
+    <string name="neutral">STOP</string>
+    <string name="backward_left">BL</string>
+    <string name="backward_right">BR</string>
+
 </resources>

@@ -1,347 +1,209 @@
 package com.xinchejian.art;
 
-import java.io.FileDescriptor;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
 import android.app.Activity;
-import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
-import android.os.ParcelFileDescriptor;
+import android.os.IBinder;
 import android.util.Log;
+import android.widget.CompoundButton;
+import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.RadioGroup;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
-import com.android.future.usb.UsbAccessory;
-import com.android.future.usb.UsbManager;
+import com.xinchejian.art.RobotService.LocalBinder;
+import com.xinchejian.art.RobotService.directions;
 
-public class ConsoleActivity extends Activity implements Runnable {
+public class ConsoleActivity extends Activity {
 	private static final int UI_UPDATE_RATE_MS = 1000;
-
-	private static final String ACTION_USB_PERMISSION = "com.xinchejian.art.action.USB_PERMISSION";
-
-	private static final byte FORWARD_RIGHT_INFRARED = 1;
-	private static final byte FORWARD_LEFT_INFRARED = 1<<1;
-	private static final byte LEFT_INFRARED = 1<<2;
-	private static final byte RIGHT_INFRARED = 1<<3;
-	private static final byte BACKWARD_INFRARED = 1<<4;
-	private static final byte FORWARD_INFRARED = 1<<5;
-	private static final int MESSAGE_COLLISIONS = 1;
 	private static final String TAG = "ConsoleActivity";
+	
 	private Map<Byte, Boolean> toggles = new HashMap<Byte, Boolean>(); 
-	UsbAccessory mAccessory;
 
-	Handler messageHandler = new Handler() {
-		@Override
-		public void handleMessage(Message msg) {
-			switch (msg.what) {
-				case MESSAGE_COLLISIONS:
-					update(msg.arg1, toggleButtonForward, FORWARD_INFRARED);
-					update(msg.arg1, toggleButtonForwardLeft, FORWARD_LEFT_INFRARED);
-					update(msg.arg1, toggleButtonForwardRight, FORWARD_RIGHT_INFRARED);
-					update(msg.arg1, toggleButtonLeft, LEFT_INFRARED);
-					update(msg.arg1, toggleButtonRight, RIGHT_INFRARED);
-					update(msg.arg1, toggleButtonBackward, BACKWARD_INFRARED);
-					break;
-
-			}
+	private void processRobotUpdate(Intent intent) {
+		byte collisions = intent.getByteExtra(RobotService.ROBOT_UPDATE_COLLISIONS, (byte) 0);
+		update(collisions, toggleButtonForward, RobotService.FORWARD_INFRARED);
+		update(collisions, toggleButtonForwardLeft, RobotService.FORWARD_LEFT_INFRARED);
+		update(collisions, toggleButtonForwardRight, RobotService.FORWARD_RIGHT_INFRARED);
+		update(collisions, toggleButtonLeft, RobotService.LEFT_INFRARED);
+		update(collisions, toggleButtonRight, RobotService.RIGHT_INFRARED);
+		update(collisions, toggleButtonBackward, RobotService.BACKWARD_INFRARED);
+	}
+	
+	private void update(int arg1, ToggleButton toggleButton, byte byteMask) {
+		Boolean currentValue = Boolean.valueOf((arg1 & byteMask) != 0);
+		Byte key = Byte.valueOf(byteMask);
+		Boolean previousValue;
+		if(toggles.containsKey(key)) {
+			Log.d(TAG, "Getting existing value for mask " + key);
+			previousValue = toggles.get(key);
+		} else {
+			Log.d(TAG, "First time we record value for mask " + key);
+			previousValue = !currentValue;
 		}
-
-		private void update(int arg1, ToggleButton toggleButton, byte byteMask) {
-			Boolean currentValue = Boolean.valueOf((arg1 & byteMask) != 0);
-			Byte key = Byte.valueOf(byteMask);
-			Boolean previousValue;
-			if(toggles.containsKey(key)) {
-				Log.d(TAG, "Getting existing value for mask " + key);
-				previousValue = toggles.get(key);
+		
+		if(currentValue != previousValue) {
+			Log.d(TAG, "Updating ToggleButton " + toggleButton.getText() + " to " + currentValue);
+			if(currentValue) {
+				toggleButton.setBackgroundColor(Color.RED);
 			} else {
-				Log.d(TAG, "First time we record value for mask " + key);
-				previousValue = !currentValue;
+				toggleButton.setBackgroundColor(Color.WHITE);
 			}
-			
-			if(currentValue != previousValue) {
-				Log.d(TAG, "Updating ToggleButton " + toggleButton.getText() + " to " + currentValue);
-				toggleButton.setChecked(currentValue);
-				toggleButton.postInvalidate();
-				toggles.put(key, currentValue);
-			}
-			
+			toggleButton.postInvalidate();
+			toggles.put(key, currentValue);
 		}
-	};
-	private int messagesReceived;
+		
+	}
+
 	private int messagesLastUiUpdate;
-	private ParcelFileDescriptor mFileDescriptor;
-	private FileInputStream mInputStream;
-	private FileOutputStream mOutputStream;
-	private PendingIntent mPermissionIntent;
-	private boolean mPermissionRequestPending;
 
-	private UsbManager mUsbManager;
-
-	private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			String action = intent.getAction();
-			if (ACTION_USB_PERMISSION.equals(action)) {
-				synchronized (this) {
-					UsbAccessory accessory = UsbManager.getAccessory(intent);
-					if (intent.getBooleanExtra(
-							UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-						openAccessory(accessory);
-					} else {
-						Log.d(TAG, "permission denied for accessory "
-								+ accessory);
-					}
-					mPermissionRequestPending = false;
-				}
-			} else if(UsbManager.ACTION_USB_ACCESSORY_ATTACHED.equals(action)) {
-				UsbAccessory accessory = UsbManager.getAccessory(intent);
-				openAccessory(accessory);				
-			} else if (UsbManager.ACTION_USB_ACCESSORY_DETACHED.equals(action)) {
-				UsbAccessory accessory = UsbManager.getAccessory(intent);
-				if (accessory != null && accessory.equals(mAccessory)) {
-					closeAccessory();
-				}
-			}
-		}
-	};
 	Runnable stateUpdate = new Runnable() {
 		public void run() {
-			toggleButtonThreadState.setChecked(thread != null && thread.isAlive());
-			if(thread == null || !thread.isAlive()) {
-				openAccessory(mAccessory);
-			}
-			textViewIp.setText(getLocalIpAddress());
+			toggleButtonThreadState.setChecked(robotServiceClient.isThreadRunning());
+			radioGroupAccessory.check(robotServiceClient.getCurrentState());
+			textViewIp.setText(robotServiceClient.getLocalIpAddress());
+			int messagesReceived = robotServiceClient.getMessagesReceived();
 			textViewMessages.setText("" + (messagesReceived - messagesLastUiUpdate)/(UI_UPDATE_RATE_MS/1000) + " Hz\n" + messagesReceived);
 			messagesLastUiUpdate = messagesReceived;
 			stateUpdateHandler.postDelayed(stateUpdate, UI_UPDATE_RATE_MS);		
 		}
 	};
+	
 	Handler stateUpdateHandler = new Handler();
+	
 	private TextView textViewIp;
-
-	private Thread thread;
-
 	private ToggleButton toggleButtonAccessoryOpened;
-
 	private ToggleButton toggleButtonBackward;
-
 	private ToggleButton toggleButtonForward;
-
 	private ToggleButton toggleButtonForwardLeft;
-
 	private ToggleButton toggleButtonForwardRight;
-
 	private ToggleButton toggleButtonLeft;
-
 	private ToggleButton toggleButtonRight;
-
 	private ToggleButton toggleButtonThreadState;
-
 	private TextView textViewMessages;
-
-	private void closeAccessory() {
-		enableControls(false);
-		try {
-			if (mFileDescriptor != null) {
-				mFileDescriptor.close();
-			}
-		} catch (IOException e) {
-		} finally {
-			mFileDescriptor = null;
-			mAccessory = null;
-		}
-	}
+	private RadioGroup radioGroupAccessory;
+	private ToggleButton toggleButtonNeutral;
+	private ToggleButton toggleButtonBackwardLeft;
+	private ToggleButton toggleButtonBackwardRight;
+	private ToggleButton lastToggleButton;
+	
+	protected RobotServiceClient robotServiceClient;
 
 	protected void enableControls(boolean enable) {
 		toggleButtonAccessoryOpened.setChecked(enable);
 	}
-	
-	public String getLocalIpAddress() {
-	    try {
-	        for (Enumeration<NetworkInterface> en = NetworkInterface
-	                .getNetworkInterfaces(); en.hasMoreElements();) {
-	            NetworkInterface intf = en.nextElement();
-	            for (Enumeration<InetAddress> enumIpAddr = intf
-	                    .getInetAddresses(); enumIpAddr.hasMoreElements();) {
-	                InetAddress inetAddress = enumIpAddr.nextElement();
-	                if (!inetAddress.isLoopbackAddress()) {
-	                    return inetAddress.getHostAddress().toString();
-	                }
-	            }
-	        }
-	    } catch (SocketException e) {
-	    	Log.e(TAG, "Could not get local IP", e);
-	    }
-    	Log.e(TAG, "Could not get local IP");
-	    return null;
-	}
 
+	private ServiceConnection mConnection = new ServiceConnection() {
+		public void onServiceConnected(ComponentName className, IBinder service) {
+			// This is called when the connection with the service has been
+			// established, giving us the object we can use to
+			// interact with the service. We are communicating with the
+			// service using a Messenger, so here we get a client-side
+			// representation of that from the raw IBinder object.
+			LocalBinder binder = (LocalBinder) service;
+			robotServiceClient = new RobotServiceClient(binder.getService());
+		}
+
+		public void onServiceDisconnected(ComponentName className) {
+			// This is called when the connection with the service has been
+			// unexpectedly disconnected -- that is, its process crashed.
+			robotServiceClient = null;
+		}
+	};
+
+	
+	public void bindToRobotService() {
+		Intent intent = new Intent(this, RobotService.class);
+		//we start the service with the intent to make sure that it always
+		//runs in the background even if we unbind from the service.
+		ComponentName componentName = startService(intent);
+		if (componentName == null) {
+			Toast.makeText(this, "Could not connect to service",
+					Toast.LENGTH_SHORT).show();
+		} else {
+			Toast.makeText(this, "Connecting to service",
+					Toast.LENGTH_SHORT).show();
+			// Bind to the service
+			bindService(new Intent(this, RobotService.class),
+					mConnection, Context.BIND_AUTO_CREATE);
+		}		
+	}
+	
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-
-		mUsbManager = UsbManager.getInstance(this);
-		mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(
-				ACTION_USB_PERMISSION), 0);
-		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-		filter.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
-		filter.addAction(UsbManager.ACTION_USB_ACCESSORY_ATTACHED);
-		registerReceiver(mUsbReceiver, filter);
-
-		if (getLastNonConfigurationInstance() != null) {
-			mAccessory = (UsbAccessory) getLastNonConfigurationInstance();
-			openAccessory(mAccessory);
-		}
-
+		IntentFilter filter = new IntentFilter(RobotService.ROBOT_UPDATE);
+		registerReceiver(new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				processRobotUpdate(intent);
+			}
+		}, filter);
+		bindToRobotService();
 		setContentView(R.layout.main);
-		toggleButtonForward = (ToggleButton) findViewById(R.id.toggleButtonForward);
-		toggleButtonForwardLeft = (ToggleButton) findViewById(R.id.toggleButtonForwardLeft);
-		toggleButtonForwardRight = (ToggleButton) findViewById(R.id.toggleButtonForwardRight);
-		toggleButtonLeft = (ToggleButton) findViewById(R.id.toggleButtonLeftSide);
-		toggleButtonRight = (ToggleButton) findViewById(R.id.toggleButtonRightSide);
-		toggleButtonBackward = (ToggleButton) findViewById(R.id.toggleButtonBackward);
+		toggleButtonForwardLeft = getToggleButton(R.id.toggleButtonForwardLeft, RobotService.directions.FORWARD_LEFT);
+		toggleButtonForward = getToggleButton(R.id.toggleButtonForward, RobotService.directions.FORWARD);
+		toggleButtonForwardRight = getToggleButton(R.id.toggleButtonForwardRight, RobotService.directions.FORWARD_RIGHT);
+		toggleButtonLeft = getToggleButton(R.id.toggleButtonLeftSide,  RobotService.directions.NEUTRAL);
+		toggleButtonNeutral = getToggleButton(R.id.toggleButtonNeutral,  RobotService.directions.NEUTRAL);
+		toggleButtonRight = getToggleButton(R.id.toggleButtonRightSide,  RobotService.directions.NEUTRAL);
+		toggleButtonBackwardLeft = getToggleButton(R.id.toggleButtonBackwardLeft, RobotService.directions.REVERSE_LEFT);
+		toggleButtonBackward = getToggleButton(R.id.toggleButtonBackward,  RobotService.directions.REVERSE);
+		toggleButtonBackwardRight = getToggleButton(R.id.toggleButtonBackwardRight, RobotService.directions.REVERSE_RIGHT);
+		
 		textViewIp = (TextView) findViewById(R.id.textViewIp);
-		toggleButtonAccessoryOpened = (ToggleButton) findViewById(R.id.toggleButtonAccessoryOpened);
 		textViewMessages = (TextView) findViewById(R.id.textViewMessages);
-		toggleButtonThreadState = (ToggleButton) findViewById(R.id.toggleButtonThreadState);
+		radioGroupAccessory = (RadioGroup) findViewById(R.id.radioGroupAccessory);
 		enableControls(false);
 		stateUpdateHandler.postDelayed(stateUpdate, 1000);
 	}
 
+	private ToggleButton getToggleButton(int id, final directions direction) {
+		final ToggleButton toggleButton = (ToggleButton) findViewById(id);
+		toggleButton.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+			public void onCheckedChanged(CompoundButton buttonView,
+					boolean isChecked) {
+				if(isChecked) {
+					robotServiceClient.go(direction);
+				}
+				lastToggleButton.setChecked(false);
+				lastToggleButton = toggleButton;
+			}
+		});
+		return toggleButton;
+	}
+
 	@Override
 	public void onDestroy() {
-		unregisterReceiver(mUsbReceiver);
 		super.onDestroy();
 	}
 	
 	@Override
 	public void onPause() {
 		super.onPause();
-		closeAccessory();
 	}
 	
 	@Override
 	public void onResume() {
 		super.onResume();
-
-		if (mInputStream != null && mOutputStream != null) {
-			return;
-		}
-
-		UsbAccessory[] accessories = mUsbManager.getAccessoryList();
-		UsbAccessory accessory = (accessories == null ? null : accessories[0]);
-		if (accessory != null) {
-			if (mUsbManager.hasPermission(accessory)) {
-				openAccessory(accessory);
-			} else {
-				synchronized (mUsbReceiver) {
-					if (!mPermissionRequestPending) {
-						mUsbManager.requestPermission(accessory,
-								mPermissionIntent);
-						mPermissionRequestPending = true;
-					}
-				}
-			}
-		} else {
-			Log.e(TAG, "mAccessory is null");
-		}
-	}
-
-	@Override
-	public Object onRetainNonConfigurationInstance() {
-		if (mAccessory != null) {
-			return mAccessory;
-		} else {
-			return super.onRetainNonConfigurationInstance();
-		}
 	}
 
 	public void onStartTrackingTouch(SeekBar seekBar) {
 	}
 	
 	public void onStopTrackingTouch(SeekBar seekBar) {
-	}
-
-
-	private void openAccessory(UsbAccessory accessory) {
-		mFileDescriptor = mUsbManager.openAccessory(accessory);
-		if (mFileDescriptor != null) {
-			mAccessory = accessory;
-			FileDescriptor fd = mFileDescriptor.getFileDescriptor();
-			mInputStream = new FileInputStream(fd);
-			mOutputStream = new FileOutputStream(fd);
-			thread = new Thread(null, this, "ART Processing Thread");
-			thread.start();
-			Log.d(TAG, "accessory opened");
-			enableControls(true);
-		} else {
-			Log.e(TAG, "accessory open fail");
-		}
-	}
-
-	public void run() {
-		int ret = 0;
-		byte[] buffer = new byte[16384];
-		int i;
-		while (ret >= 0) {
-			try {
-				ret = mInputStream.read(buffer);
-			} catch (IOException e) {
-				Log.e(TAG, "Could not read from input stream", e);
-				break;
-			}
-
-			i = 0;
-			while (i < ret) {
-				int len = ret - i;
-				switch (buffer[i]) {
-					case 0x1:
-						if (len >= 2) {
-							Message m = Message.obtain(messageHandler, MESSAGE_COLLISIONS);
-							m.arg1 = buffer[i + 1];
-							Log.d(TAG, "Read: " + buffer[i + 1]);
-							messageHandler.sendMessage(m);
-						}
-						i += 2;
-						messagesReceived++;
-						break;
-				}
-			}
-
-		}
-		Log.e(TAG, "Exiting from processing thread");
-	}
-
-	public void sendCommand(byte command, byte target, int value) {
-		byte[] buffer = new byte[3];
-		if (value > 255)
-			value = 255;
-
-		buffer[0] = command;
-		buffer[1] = target;
-		buffer[2] = (byte) value;
-		if (mOutputStream != null && buffer[1] != -1) {
-			try {
-				mOutputStream.write(buffer);
-			} catch (IOException e) {
-				Log.e(TAG, "write failed", e);
-			}
-		}
 	}
 }

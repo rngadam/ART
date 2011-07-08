@@ -13,21 +13,26 @@
 	<uses-permission android:name="android.permission.FLASHLIGHT"></uses-permission>
     <application android:icon="@drawable/icon" android:label="@string/app_name" >
 		<uses-library android:name="com.android.future.usb.accessory"/>
+	    <service android:name="RobotService">
+        </service>	
         <activity android:name=".ConsoleActivity"
-                  android:label="@string/app_name" android:theme="@android:style/Theme.NoTitleBar.Fullscreen" >
+                  android:label="@string/app_name" 
+                  android:theme="@android:style/Theme.NoTitleBar.Fullscreen" 
+                  android:launchMode="singleInstance"
+                  >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-		<activity android:name="UsbAccessoryActivity" android:label="ART"
-			android:taskAffinity="" android:launchMode="singleInstance">
 			<intent-filter>
 				<action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
 			</intent-filter>
+			<intent-filter>
+            	<action android:name="com.xinchejian.art.ROBOT_UPDATE" />
+        	</intent-filter>
 
 			<meta-data android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
-				android:resource="@xml/accessory_filter" />
-		</activity>
+				android:resource="@xml/accessory_filter" />            
+        </activity>
     </application>
 </manifest>
