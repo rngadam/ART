@@ -48,7 +48,7 @@ public class ClientActivity extends Activity {
 				while (!isExit) {
 					Socket socket = new Socket();
 					try {
-						socket.connect( new InetSocketAddress("10.0.0.23", 8888));
+						socket.connect( new InetSocketAddress("10.0.0.24", 8888));
 					} catch (IOException e) {
 						Log.e(TAG, "Error getting client socket", e);
 						continue;
@@ -99,8 +99,10 @@ public class ClientActivity extends Activity {
 						}
 						InflaterInputStream inflater = new InflaterInputStream(dataInputStream);
 						try {
-							
-							inflater.read(buffer, 0, uncompressed);
+							int read = 0;
+							while(read != uncompressed) {
+								read += inflater.read(buffer, read, uncompressed - read);
+							}
 						} catch (IOException e) {
 							Log.e(TAG, "Failed reading stream!");
 							break;
