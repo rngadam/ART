@@ -113,8 +113,12 @@ public class VideoStreamingReceiverService extends Service {
 					} 
 					
 					Log.i(TAG, "Receiving uncompressed " + uncompressed + " compressed " + compressed + " of width " + width + " and height " + height);
-					if(uncompressed > buffer.length || uncompressed < 0) {
-						Log.d(TAG, "Buffer is too small or invalid for uncompressed data " + buffer.length);
+					if(uncompressed > buffer.length || uncompressed <= 0) {
+						Log.e(TAG, "Buffer is too small or invalid for uncompressed data " + buffer.length);
+						break;
+					}
+					if(width > 1024 || height > 768) {
+						Log.e(TAG, "Invalid image size");
 						break;
 					}
 					InflaterInputStream inflater = new InflaterInputStream(dataInputStream);

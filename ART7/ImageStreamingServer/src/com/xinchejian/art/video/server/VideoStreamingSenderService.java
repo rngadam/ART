@@ -11,6 +11,7 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -19,6 +20,7 @@ import java.util.zip.Deflater;
 import android.app.Service;
 import android.content.Intent;
 import android.hardware.Camera;
+import android.hardware.Camera.Size;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
@@ -188,25 +190,30 @@ public class VideoStreamingSenderService extends Service {
 	@Override
 	public IBinder onBind(Intent intent) {
 		Log.d(TAG, "onBind");
+		changePauseState(false);
+		return binder;
+	}
+
+	private void changePauseState(boolean flag) {
 		lock.lock();
 		try {
-			isPaused = false;
+			isPaused = flag;
 			suspended.signal();
 		} finally {
 			lock.unlock();
 		}
-		return binder;
 	}
 
 	Camera.PreviewCallback previewCallback = new PreviewCallbackImplementation();
+	private int minFps;
+	private int maxFps;
 
 	/** Called when the activity is first created. */
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		isPaused = false;
-		suspended.signal();
+		changePauseState(false);
 		compresser = new Deflater();
 		compresser.setStrategy(Deflater.HUFFMAN_ONLY);
 		if(freeFrames == null) {
@@ -235,10 +242,22 @@ public class VideoStreamingSenderService extends Service {
 		try {
 			camera = Camera.open();
 			Camera.Parameters parameters = camera.getParameters();
-			//parameters.setPreviewSize(640,480);
+
+			List<int[]> supportedPreviewFpsRange = parameters.getSupportedPreviewFpsRange();
+			minFps = supportedPreviewFpsRange.get(Camera.Parameters.PREVIEW_FPS_MIN_INDEX)[0];
+			maxFps = supportedPreviewFpsRange.get(Camera.Parameters.PREVIEW_FPS_MIN_INDEX)[1];
+			List<Size> supportedPreviewSizes = parameters.getSupportedPreviewSizes();
+			Size selectedSize = supportedPreviewSizes.get(0);
+			for(Size size : supportedPreviewSizes) {
+				if(size.width < selectedSize.width) 
+					selectedSize = size;
+			}
+			parameters.setPreviewSize(selectedSize.width, selectedSize.height);
+			
+			parameters.setPreviewFpsRange(minFps, maxFps);
 			preH = parameters.getPreviewSize().height;
 			preW = parameters.getPreviewSize().width;
-			//camera.setParameters(parameters);
+			camera.setParameters(parameters);
 			bytesPerPixel = 4;
 			if (buffers == null) {
 				int frameSize = preH * preW * bytesPerPixel;
@@ -295,6 +314,10 @@ public class VideoStreamingSenderService extends Service {
 		return "Frame rate: " + frames * 1000
 				/ (System.currentTimeMillis() - startTime) 
 				+ " dropped " + dropped
-				+ " sent " + sent;
+				+ " sent " + sent
+				+ "\nminfps " + minFps
+				+ " maxfps " + maxFps
+				+ "\nwidth " + preW 
+				+ " height " + preH;
 	}
 }
