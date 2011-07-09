@@ -17,7 +17,6 @@ import android.os.IBinder;
 import android.util.Log;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
-import android.widget.SeekBar;
 import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,8 +26,21 @@ import com.xinchejian.art.RobotService.LocalBinder;
 import com.xinchejian.art.RobotService.directions;
 
 public class ConsoleActivity extends Activity {
-	private static final int UI_UPDATE_RATE_MS = 1000;
+	private final class RobotServiceConnection implements
+			ServiceConnection {
+		public void onServiceConnected(ComponentName className, IBinder service) {
+			LocalBinder binder = (LocalBinder) service;
+			robotServiceClient = new RobotServiceClient(binder.getService());
+		}
+
+		public void onServiceDisconnected(ComponentName className) {
+			robotServiceClient = null;
+		}
+	};
+
 	private static final String TAG = "ConsoleActivity";
+
+	private static final int UI_UPDATE_RATE_MS = 1000;
 	
 	private Map<Byte, Boolean> toggles = new HashMap<Byte, Boolean>(); 
 
@@ -64,7 +76,6 @@ public class ConsoleActivity extends Activity {
 			toggleButton.postInvalidate();
 			toggles.put(key, currentValue);
 		}
-		
 	}
 
 	private int messagesLastUiUpdate;
@@ -91,32 +102,18 @@ public class ConsoleActivity extends Activity {
 	private ToggleButton toggleButtonForwardRight;
 	private ToggleButton toggleButtonLeft;
 	private ToggleButton toggleButtonRight;
-	private TextView textViewMessages;
-	private TextView textViewState;
 	private ToggleButton toggleButtonNeutral;
 	private ToggleButton toggleButtonBackwardLeft;
 	private ToggleButton toggleButtonBackwardRight;
+	
+	private TextView textViewMessages;
+	private TextView textViewState;
+	
 	private ToggleButton lastToggleButton;
 	
 	protected RobotServiceClient robotServiceClient;
 
-	private ServiceConnection mConnection = new ServiceConnection() {
-		public void onServiceConnected(ComponentName className, IBinder service) {
-			// This is called when the connection with the service has been
-			// established, giving us the object we can use to
-			// interact with the service. We are communicating with the
-			// service using a Messenger, so here we get a client-side
-			// representation of that from the raw IBinder object.
-			LocalBinder binder = (LocalBinder) service;
-			robotServiceClient = new RobotServiceClient(binder.getService());
-		}
-
-		public void onServiceDisconnected(ComponentName className) {
-			// This is called when the connection with the service has been
-			// unexpectedly disconnected -- that is, its process crashed.
-			robotServiceClient = null;
-		}
-	};
+	private ServiceConnection robotServiceConnection = new RobotServiceConnection();
 	private TableLayout tableLayout;
 
 	
@@ -133,7 +130,7 @@ public class ConsoleActivity extends Activity {
 					Toast.LENGTH_SHORT).show();
 			// Bind to the service
 			bindService(new Intent(this, RobotService.class),
-					mConnection, Context.BIND_AUTO_CREATE);
+					robotServiceConnection, Context.BIND_AUTO_CREATE);
 		}		
 	}
 	
@@ -150,8 +147,11 @@ public class ConsoleActivity extends Activity {
 		}, filter);
 		bindToRobotService();
 		setContentView(R.layout.main);
-		tableLayout = (TableLayout) findViewById(R.id.tableLayout1);
+		textViewIp = (TextView) findViewById(R.id.textViewIp);
+		textViewMessages = (TextView) findViewById(R.id.textViewMessages);
+		textViewState = (TextView) findViewById(R.id.textViewState);
 
+		tableLayout = (TableLayout) findViewById(R.id.tableLayout1);
 		toggleButtonForwardLeft = getToggleButton(R.id.toggleButtonForwardLeft, RobotService.directions.FORWARD_LEFT);
 		toggleButtonForward = getToggleButton(R.id.toggleButtonForward, RobotService.directions.FORWARD);
 		toggleButtonForwardRight = getToggleButton(R.id.toggleButtonForwardRight, RobotService.directions.FORWARD_RIGHT);
@@ -161,9 +161,6 @@ public class ConsoleActivity extends Activity {
 		toggleButtonBackwardLeft = getToggleButton(R.id.toggleButtonBackwardLeft, RobotService.directions.REVERSE_LEFT);
 		toggleButtonBackward = getToggleButton(R.id.toggleButtonBackward,  RobotService.directions.REVERSE);
 		toggleButtonBackwardRight = getToggleButton(R.id.toggleButtonBackwardRight, RobotService.directions.REVERSE_RIGHT);
-		textViewIp = (TextView) findViewById(R.id.textViewIp);
-		textViewMessages = (TextView) findViewById(R.id.textViewMessages);
-		textViewState = (TextView) findViewById(R.id.textViewState);
 		tableLayout.setShrinkAllColumns(true);
 		tableLayout.setStretchAllColumns(true);
 		
@@ -185,26 +182,5 @@ public class ConsoleActivity extends Activity {
 			}
 		});
 		return toggleButton;
-	}
-
-	@Override
-	public void onDestroy() {
-		super.onDestroy();
-	}
-	
-	@Override
-	public void onPause() {
-		super.onPause();
-	}
-	
-	@Override
-	public void onResume() {
-		super.onResume();
-	}
-
-	public void onStartTrackingTouch(SeekBar seekBar) {
-	}
-	
-	public void onStopTrackingTouch(SeekBar seekBar) {
 	}
 }

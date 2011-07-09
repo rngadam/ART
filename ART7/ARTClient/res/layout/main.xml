@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_height="fill_parent" android:layout_width="match_parent"
+	android:orientation="vertical">
+	<TableLayout android:id="@+id/tableLayout1"
+		android:layout_width="fill_parent" android:layout_height="fill_parent"
+		android:stretchColumns="1" android:gravity="bottom">
+
+		<TableRow>
+			<LinearLayout android:id="@+id/linearLayout1"
+				android:orientation="vertical" android:layout_width="wrap_content"
+				android:layout_height="wrap_content">
+				<Button android:text="Button" android:id="@+id/button3"
+					android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
+				<Button android:id="@+id/button4" android:text="Button"
+					android:layout_height="wrap_content" android:layout_width="wrap_content"></Button>
+				<Button android:id="@+id/button1" android:text="Button"
+					android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
+			</LinearLayout>
+			<ImageView android:id="@+id/imageView1" android:src="@drawable/icon"
+				android:layout_height="match_parent" android:layout_width="match_parent"
+				android:layout_gravity="center"></ImageView>
+			<LinearLayout android:id="@+id/linearLayout2"
+				android:orientation="vertical" android:layout_width="wrap_content"
+				android:layout_height="wrap_content" android:gravity="right">
+				<Button android:id="@+id/button5" android:layout_height="wrap_content"
+					android:layout_width="wrap_content" android:text="Button"></Button>
+				<Button android:id="@+id/button6" android:text="Button"
+					android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
+				<Button android:id="@+id/button2" android:text="Button"
+					android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
+			</LinearLayout>
+		</TableRow>
+		<TableRow>
+			<TextView android:singleLine="false" android:id="@+id/textViewStreamStatus"
+				android:text="TextView" android:layout_height="match_parent"
+				android:layout_width="wrap_content"></TextView>
+		</TableRow>
+		<TableRow android:layout_width="wrap_content" android:id="@+id/tableRow1"
+			android:layout_margin="0dip" android:layout_height="wrap_content">
+			<ToggleButton android:layout_weight="1"
+				android:layout_width="0dip" android:layout_height="wrap_content"
+				android:text="@string/forward_left" android:textOff="@string/forward_left"
+				android:textOn="@string/forward_left" android:id="@+id/toggleButtonForwardLeft"></ToggleButton>
+			<ToggleButton android:layout_weight="1"
+				android:layout_width="0dip" android:id="@+id/toggleButtonForward"
+				android:textOn="@string/forward" android:textOff="@string/forward"
+				android:text="@string/forward" android:layout_height="wrap_content"></ToggleButton>
+			<ToggleButton android:layout_weight="1"
+				android:layout_width="0dip" android:layout_height="wrap_content"
+				android:text="@string/forward_right" android:textOff="@string/forward_right"
+				android:textOn="@string/forward_right" android:id="@+id/toggleButtonForwardRight"></ToggleButton>
+		</TableRow>
+		<TableRow android:layout_height="wrap_content"
+			android:layout_width="wrap_content" android:id="@+id/tableRow2">
+			<ToggleButton android:layout_weight="1" android:text="@string/left_side"
+				android:layout_height="wrap_content" android:layout_width="0dip"
+				android:textOn="@string/left_side" android:textOff="@string/left_side"
+				android:id="@+id/toggleButtonLeftSide"></ToggleButton>
+			<ToggleButton android:layout_weight="1"
+				android:layout_width="0dip" android:layout_height="wrap_content"
+				android:text="@string/neutral" android:textOff="@string/neutral"
+				android:textOn="@string/neutral" android:id="@+id/toggleButtonNeutral"></ToggleButton>
+			<ToggleButton android:layout_weight="1"
+				android:layout_width="0dip" android:layout_height="wrap_content"
+				android:text="@string/right_side" android:textOff="@string/right_side"
+				android:textOn="@string/right_side" android:id="@+id/toggleButtonRightSide"></ToggleButton>
+		</TableRow>
+		<TableRow android:layout_height="wrap_content"
+			android:layout_width="wrap_content">
+			<ToggleButton android:layout_weight="1"
+				android:text="@string/backward_left" android:layout_width="0dip"
+				android:layout_height="wrap_content" android:textOff="@string/backward_left"
+				android:textOn="@string/backward_left" android:id="@+id/toggleButtonBackwardLeft"></ToggleButton>
+			<ToggleButton android:layout_weight="1" android:text="@string/backward"
+				android:layout_width="0dip" android:layout_height="wrap_content"
+				android:textOff="@string/backward" android:textOn="@string/backward"
+				android:id="@+id/toggleButtonBackward"></ToggleButton>
+			<ToggleButton android:layout_weight="1"
+				android:text="@string/backward_right" android:layout_width="0dip"
+				android:layout_height="wrap_content" android:textOff="@string/backward_right"
+				android:textOn="@string/backward_right" android:id="@+id/toggleButtonBackwardRight"></ToggleButton>
+		</TableRow>
+	</TableLayout>
+</LinearLayout>

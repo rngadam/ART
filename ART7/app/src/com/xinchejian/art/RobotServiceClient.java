@@ -26,7 +26,6 @@ public class RobotServiceClient {
 	}
 
 	public String getCurrentStateName() {
-		// TODO Auto-generated method stub
 		return service.getCurrentStateName();
 	}
 }
