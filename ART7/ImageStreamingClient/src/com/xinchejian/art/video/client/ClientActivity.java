@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.xinchejian.art.video.client.VideoStreamingReceiverService.LocalBinder;
@@ -25,6 +26,7 @@ public class ClientActivity extends Activity {
 	private ImageView imageView;
 	private Handler imageUpdaterHandler = new Handler();
 	private VideoStreamingReceiverClient videoStreamingReceiverClient;
+	private long startTime;
 	
 	private void changePauseState(boolean flag) {
 		lock.lock();
@@ -32,6 +34,9 @@ public class ClientActivity extends Activity {
 			isPaused = flag;
 			imageUpdaterHandler.removeCallbacks(imageUpdaterRunnable);
 			if(!flag) {
+				displayed = 0;
+				underflow = 0;
+				startTime = System.currentTimeMillis();
 				imageUpdaterHandler.postDelayed(imageUpdaterRunnable, 200);
 			}
 			isPausedCondition.signal();
@@ -56,6 +61,9 @@ public class ClientActivity extends Activity {
 			changePauseState(true);
 		}
 	};
+	private TextView textViewStatus;
+	protected int displayed;
+	protected int underflow;
 
 	/** Called when the activity is first created. */
     @Override
@@ -64,6 +72,7 @@ public class ClientActivity extends Activity {
         startService(); 
         setContentView(R.layout.main);
         imageView = (ImageView) findViewById(R.id.imageView1);
+        textViewStatus = (TextView) findViewById(R.id.textViewStatus);
     }
     
 	@Override
@@ -102,14 +111,21 @@ public class ClientActivity extends Activity {
 		@Override
 		public void run() {
 			//Log.d(TAG, "Updating client UI");
+			textViewStatus.setText(videoStreamingReceiverClient.getStatus() +  " display fps: " + displayed * 1000
+					/ (System.currentTimeMillis() - startTime) 
+					+ " underflow (Hz) " + (System.currentTimeMillis() - startTime)/((underflow+1)*1000)
+					+ " received " + displayed);
 			Bitmap nextBitmap = videoStreamingReceiverClient.getNextBitmap();
 			if(nextBitmap != null) {
 				imageView.setImageBitmap(nextBitmap);
+				displayed++;
+			} else {
+				underflow++;
 			}
 			lock.lock();
 			try {
 				if(!isPaused) {
-					imageUpdaterHandler.postDelayed(imageUpdaterRunnable, 200);
+					imageUpdaterHandler.postDelayed(imageUpdaterRunnable, 40);
 				}
 			} finally {
 				lock.unlock();

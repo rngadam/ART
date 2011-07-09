@@ -12,4 +12,8 @@ public class VideoStreamingReceiverClient {
 	public Bitmap getNextBitmap() {
 		return service.getNextBitmap();
 	}
+
+	public String getStatus() {
+		return service.getStatus();
+	}
 }

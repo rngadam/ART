@@ -45,6 +45,8 @@ public class VideoStreamingReceiverService extends Service {
 	private byte[] buffer;
 	private int[] secondaryBuffer;
 	private LinkedBlockingQueue<Bitmap> bitmaps = new LinkedBlockingQueue<Bitmap>(5);
+	protected int received;
+	protected int dropped;
 
 	private Runnable clientThreadRunnable = new Runnable() {
 		
@@ -77,6 +79,9 @@ public class VideoStreamingReceiverService extends Service {
 					return;
 				}
 				Log.d(TAG, "Client connected to server");
+				received = 0;
+				dropped = 0;
+				startTime = System.currentTimeMillis();
 				while (socket.isConnected()) {
 					lock.lock();
 					try {
@@ -97,6 +102,7 @@ public class VideoStreamingReceiverService extends Service {
 					int compressed;
 					int width;
 					int height;
+					boolean compression;
 					try {
 						socket.setSoTimeout(5000);
 					} catch (SocketException e) {
@@ -107,6 +113,7 @@ public class VideoStreamingReceiverService extends Service {
 						compressed = dataInputStream.readInt();
 						width = dataInputStream.readInt();
 						height = dataInputStream.readInt();
+						compression = dataInputStream.readBoolean();
 					} catch (IOException e) {
 						Log.e(TAG, "Error reading header information", e);
 						break;
@@ -121,11 +128,16 @@ public class VideoStreamingReceiverService extends Service {
 						Log.e(TAG, "Invalid image size");
 						break;
 					}
-					InflaterInputStream inflater = new InflaterInputStream(dataInputStream);
+					InputStream readFrom;
+					if(compression) {
+						readFrom = new InflaterInputStream(dataInputStream);
+					} else {
+						readFrom = dataInputStream;
+					}
 					try {
 						int read = 0;
 						while(read != uncompressed) {
-							read += inflater.read(buffer, read, uncompressed - read);
+							read += readFrom.read(buffer, read, uncompressed - read);
 						}
 					} catch (IOException e) {
 						Log.e(TAG, "Failed reading stream!");
@@ -136,9 +148,12 @@ public class VideoStreamingReceiverService extends Service {
 					}
 					try {
 						Bitmap processImage = processImage(buffer, uncompressed, width, height);
-						if(bitmaps.remainingCapacity() > 0) {
-							bitmaps.put(processImage);
-						}
+						if(bitmaps.remainingCapacity() < 1) {
+							bitmaps.take();
+							dropped++;
+						} 
+						bitmaps.put(processImage);
+						received++;
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					} catch(IllegalArgumentException e) {
@@ -160,6 +175,7 @@ public class VideoStreamingReceiverService extends Service {
 			return Bitmap.createBitmap(secondaryBuffer, width, height, Config.ARGB_8888);
 		}
 	};
+	private long startTime;
 	/**
 	 * Class used for the client Binder. Because we know this service always
 	 * runs in the same process as its clients, we don't need to deal with IPC.
@@ -289,5 +305,12 @@ public class VideoStreamingReceiverService extends Service {
 		} catch (InterruptedException e) {
 			return null;
 		}
+	}
+
+	public String getStatus() {
+		return "transfer fps: " + received * 1000
+			/ (System.currentTimeMillis() - startTime) 
+			+ " dropped " + dropped
+			+ " received " + received;
 	}
 }
