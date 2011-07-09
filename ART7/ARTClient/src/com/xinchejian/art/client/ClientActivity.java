@@ -66,11 +66,27 @@ public class ClientActivity extends Activity {
 	private Map<Byte, Boolean> toggles = new HashMap<Byte, Boolean>();
 	protected boolean displayStatusOnScreen = false; 
 	
+	private Runnable robotUpdaterRunnable = new Runnable() {
+		@Override
+		public void run() {
+			robotData = receiverClient.getRobotData();
+			processRobotUpdate();
+			lock.lock();
+			try {
+				if(!isPaused) {
+					updaterHandler.postDelayed(robotUpdaterRunnable, 200);
+				}
+			} finally {
+				lock.unlock();
+			}
+		}
+	};
+	
 	private Runnable updaterRunnable = new Runnable() {
 		@Override
 		public void run() {
 			//Log.d(TAG, "Updating client UI");
-			if(displayStatusOnScreen ) {
+			if(displayStatusOnScreen) {
 				textViewStreamStatus.setText(getDisplayStatus());
 			} else {
 				textViewStreamStatus.setVisibility(View.INVISIBLE);
@@ -82,8 +98,7 @@ public class ClientActivity extends Activity {
 			} else {
 				underflow++;
 			}
-			robotData = receiverClient.getRobotData();
-			processRobotUpdate();
+
 			lock.lock();
 			try {
 				if(!isPaused) {
@@ -160,11 +175,13 @@ public class ClientActivity extends Activity {
 		try {
 			isPaused = flag;
 			updaterHandler.removeCallbacks(updaterRunnable);
+			updaterHandler.removeCallbacks(robotUpdaterRunnable);
 			if(!flag) {
 				displayed = 0;
 				underflow = 0;
 				startTime = System.currentTimeMillis();
 				updaterHandler.postDelayed(updaterRunnable, 200);
+				updaterHandler.postDelayed(robotUpdaterRunnable, 300);
 			}
 			isPausedCondition.signal();
 		} finally {

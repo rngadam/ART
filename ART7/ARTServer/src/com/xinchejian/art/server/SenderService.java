@@ -19,6 +19,7 @@ import java.util.zip.Deflater;
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.hardware.Camera;
 import android.hardware.Camera.Size;
 import android.os.Binder;
@@ -336,10 +337,22 @@ public class SenderService extends Service {
 		try {
 			camera = Camera.open();
 			Camera.Parameters parameters = camera.getParameters();
-
+			
+			int previewFpsRangeIndex = Camera.Parameters.PREVIEW_FPS_MIN_INDEX;
+			/*
+			 * SharedPreferences preferences = getSharedPreferences(ServerConstants.PREFS_STORE, MODE_WORLD_WRITEABLE);
+			boolean use_high_fps = preferences.getBoolean(ServerConstants.USE_HIGH_FPS_PREF, true);
+			if(use_high_fps) {
+				previewFpsRangeIndex = Camera.Parameters.PREVIEW_FPS_MAX_INDEX-1;
+			} else {
+				previewFpsRangeIndex = Camera.Parameters.PREVIEW_FPS_MIN_INDEX;
+				
+			}
+			 */
+			
 			List<int[]> supportedPreviewFpsRange = parameters.getSupportedPreviewFpsRange();
-			minFps = supportedPreviewFpsRange.get(Camera.Parameters.PREVIEW_FPS_MIN_INDEX)[0];
-			maxFps = supportedPreviewFpsRange.get(Camera.Parameters.PREVIEW_FPS_MIN_INDEX)[1];
+			minFps = supportedPreviewFpsRange.get(previewFpsRangeIndex)[0];
+			maxFps = supportedPreviewFpsRange.get(previewFpsRangeIndex)[1];
 			List<Size> supportedPreviewSizes = parameters.getSupportedPreviewSizes();
 			Size selectedSize = supportedPreviewSizes.get(0);
 			for(Size size : supportedPreviewSizes) {
