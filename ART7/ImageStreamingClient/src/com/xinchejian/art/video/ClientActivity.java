@@ -8,6 +8,7 @@ import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.util.Enumeration;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
@@ -39,99 +40,113 @@ public class ClientActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
-		buffer = new byte[3000000];
+		buffer = new byte[1000000];
         imageView = (ImageView) findViewById(R.id.imageView1);
-		clientThread = new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				while (!isExit) {
-					Socket socket = new Socket();
-					try {
-						socket.connect( new InetSocketAddress("10.0.0.24", 8888));
-					} catch (IOException e) {
-						Log.e(TAG, "Error getting client socket", e);
-						continue;
-					}
-					DataInputStream dataInputStream;
-					try {
-						InputStream inputStream = socket.getInputStream();
-						dataInputStream = new DataInputStream(inputStream);
-					} catch (IOException e) {
-						Log.e(TAG, "Error getting input stream", e);
-						return;
-					}
-					Log.d(TAG, "Client connected to server");
-					while (socket.isConnected()) {
-						lock.lock();
+        if(clientThread == null) {
+			clientThread = new Thread(new Runnable() {
+	
+				@Override
+				public void run() {
+					while (!isExit) {
+						Socket socket = new Socket();
+				
 						try {
-							if(isPaused) {
-								suspended.await();
+							socket.connect( new InetSocketAddress("10.0.0.18", 8888), 1000);
+						} catch (IOException e) {
+							Log.e(TAG, "Error getting client socket", e);
+							continue;
+						}
+						if(!socket.isConnected()) {
+							continue;
+						}
+						DataInputStream dataInputStream;
+						try {
+							InputStream inputStream = socket.getInputStream();
+							dataInputStream = new DataInputStream(inputStream);
+						} catch (IOException e) {
+							Log.e(TAG, "Error getting input stream", e);
+							return;
+						}
+						Log.d(TAG, "Client connected to server");
+						while (socket.isConnected()) {
+							lock.lock();
+							try {
+								if(isPaused) {
+									suspended.await();
+									continue;
+								}
+								if(isExit) {
+									break;
+								}
+							} catch (InterruptedException e) {
+								e.printStackTrace();
 								continue;
+							} finally {
+								lock.unlock();
 							}
-							if(isExit) {
+							int uncompressed;
+							int compressed;
+							int width;
+							int height;
+							try {
+								socket.setSoTimeout(5000);
+							} catch (SocketException e) {
+								Log.d(TAG, "could not set socket timeout", e);
+							}							
+							try {
+								uncompressed = dataInputStream.readInt();
+								compressed = dataInputStream.readInt();
+								width = dataInputStream.readInt();
+								height = dataInputStream.readInt();
+							} catch (IOException e) {
+								Log.e(TAG, "Error reading header information", e);
+								break;
+							} 
+							
+							Log.i(TAG, "Receiving uncompressed " + uncompressed + " compressed " + compressed + " of width " + width + " and height " + height);
+							if(uncompressed > buffer.length || uncompressed < 0) {
+								Log.d(TAG, "Buffer is too small or invalid for uncompressed data " + buffer.length);
 								break;
 							}
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-							continue;
-						} finally {
-							lock.unlock();
-						}
-						int uncompressed;
-						int compressed;
-						int width;
-						int height;
-						try {
-							uncompressed = dataInputStream.readInt();
-							compressed = dataInputStream.readInt();
-							width = dataInputStream.readInt();
-							height = dataInputStream.readInt();
-						} catch (IOException e) {
-							Log.e(TAG, "Error reading header information", e);
-							break;
-						}
-						
-						Log.i(TAG, "Receiving uncompressed " + uncompressed + " compressed " + compressed + " of width " + width + " and height " + height);
-						if(uncompressed > buffer.length) {
-							Log.d(TAG, "Buffer is too small for uncompressed data " + buffer.length);
-							break;
-						}
-						InflaterInputStream inflater = new InflaterInputStream(dataInputStream);
-						try {
-							int read = 0;
-							while(read != uncompressed) {
-								read += inflater.read(buffer, read, uncompressed - read);
+							InflaterInputStream inflater = new InflaterInputStream(dataInputStream);
+							try {
+								int read = 0;
+								while(read != uncompressed) {
+									read += inflater.read(buffer, read, uncompressed - read);
+								}
+							} catch (IOException e) {
+								Log.e(TAG, "Failed reading stream!");
+								break;
+							} catch(RuntimeException e) {
+								Log.e(TAG, "Error inflating data", e);
+								break;
 							}
-						} catch (IOException e) {
-							Log.e(TAG, "Failed reading stream!");
-							break;
-						} catch(RuntimeException e) {
-							Log.e(TAG, "Error inflating data", e);
-							break;
+							try {
+								bitmaps.put(processImage(buffer, uncompressed, width, height));
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							} catch(IllegalArgumentException e) {
+								Log.e(TAG, "Error processing image");
+								break;
+							}
 						}
 						try {
-							bitmaps.put(processImage(buffer, uncompressed, width, height));
-						} catch (InterruptedException e) {
-							e.printStackTrace();
+							socket.close();
+						} catch (IOException e) {
+							Log.d(TAG, "Error closing socket");
 						}
-					}
-					try {
-						socket.close();
-					} catch (IOException e) {
-						Log.d(TAG, "Error closing socket");
 					}
 				}
-			}
-
-
-			private Bitmap processImage(byte[] buffer, int uncompressed, int width, int height) {
-				int[] output = new int[buffer.length];
-				decodeYUV420SP(output, buffer, width, height);
-				return Bitmap.createBitmap(output, width, height, Config.ARGB_8888);
-			}
-		});
-		clientThread.start();
+	
+	
+				private Bitmap processImage(byte[] buffer, int uncompressed, int width, int height) {
+					int[] output = new int[buffer.length];
+					decodeYUV420SP(output, buffer, width, height);
+					return Bitmap.createBitmap(output, width, height, Config.ARGB_8888);
+				}
+			});
+			clientThread.start();
+        }
 
 		imageUpdaterHandler.postDelayed(imageUpdaterRunnable, 1000);
     }
@@ -204,5 +219,43 @@ Runnable imageUpdaterRunnable = new Runnable() {
 	    }
     	Log.e(TAG, "Could not get local IP");
 	    return null;
+	}
+
+	@Override
+	protected void onDestroy() {
+		Log.d(TAG, "onDestroy");
+		super.onDestroy();
+		lock.lock();
+		try {
+			isExit = true;
+			suspended.signal();
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	@Override
+	protected void onPause() {
+		Log.d(TAG, "onPause");
+		super.onPause();
+		lock.lock();
+		try {
+			isPaused = true;
+			suspended.signal();
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		lock.lock();
+		try {
+			isPaused = false;
+			suspended.signal();
+		} finally {
+			lock.unlock();
+		}
 	}	
 }

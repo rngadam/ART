@@ -28,6 +28,8 @@ public class ServerActivity extends Activity {
 	private final Condition suspended = lock.newCondition();
 	private boolean isPaused = false;
 	private boolean isExit = false;
+	private int sent;
+
 
 	@Override
 	protected void onDestroy() {
@@ -49,6 +51,7 @@ public class ServerActivity extends Activity {
 		lock.lock();
 		try {
 			isPaused = true;
+			suspended.signal();
 		} finally {
 			lock.unlock();
 		}
@@ -57,8 +60,8 @@ public class ServerActivity extends Activity {
 
 	@Override
 	protected void onResume() {
+		Log.d(TAG, "onResume");
 		super.onResume();
-		openCamera();
 		lock.lock();
 		try {
 			isPaused = false;
@@ -66,12 +69,13 @@ public class ServerActivity extends Activity {
 		} finally {
 			lock.unlock();
 		}
+		openCamera();
 	}
 
 	protected static final String TAG = ServerActivity.class.getCanonicalName();
 	private TextView status;
 	private Camera camera;
-	protected int fps;
+	protected int frames;
 	protected long startTime;
 	private Deflater compresser;
 	private class Frame {
@@ -88,48 +92,57 @@ public class ServerActivity extends Activity {
 	private int preH;
 	private int preW;
 	private Thread serverThread;
-	private static final int NUMBER_OF_BUFFERS = 3;
-	private static final int COMPRESSED_FRAME_SIZE = 1000000;
+	private static final int NUMBER_OF_BUFFERS = 5;
+	private static final int COMPRESSED_FRAME_SIZE = 500000;
 	byte[][] buffers;
 	private int bytesPerPixel;
+	private int dropped;
 	Camera.PreviewCallback previewCallback = new Camera.PreviewCallback() {
 
+
 		public void onPreviewFrame(byte[] previewFrameBytes, Camera camera) {
-			lock.lock();
 			try {
 				if (camera == null) {
 					return;
 				}
-				Frame frame;
-				if(freeFrames.isEmpty()) {
-					frame = filledFrames.take();
-				} else {
+				if(!freeFrames.isEmpty()) {
+					Frame frame;
 					frame = freeFrames.take();
+					compresser.reset();
+					compresser.setInput(previewFrameBytes);
+					compresser.finish();
+					frame.compressedSize = compresser.deflate(frame.data);
+					frame.uncompressedSize = previewFrameBytes.length;
+					filledFrames.put(frame);
+					frames++;
+				} else {
+					dropped++;
 				}
-				compresser.reset();
-				compresser.setInput(previewFrameBytes);
-				compresser.finish();
-				frame.compressedSize = compresser.deflate(frame.data);
-				frame.uncompressedSize = previewFrameBytes.length;
-				filledFrames.put(frame);
-
-				status.setText("Frame rate: " + fps++ * 1000
-						/ (System.currentTimeMillis() - startTime));
+				
+				status.setText("Frame rate: " + frames * 1000
+						/ (System.currentTimeMillis() - startTime) 
+						+ " dropped " + dropped
+						+ " sent " + sent);
+				 
+				if(System.currentTimeMillis() % 100 == 0) {
+					ip.setText(getLocalIpAddress());
+				}
 			} catch (InterruptedException e) {
 				e.printStackTrace();
-			} finally {
-				lock.unlock();
-			}
+			} 
 		}
 
 	};
+	private TextView ip;
 
 	/** Called when the activity is first created. */
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		isPaused = false;
 		compresser = new Deflater();
+		compresser.setStrategy(Deflater.HUFFMAN_ONLY);
 		if(freeFrames == null) {
 			freeFrames = new LinkedBlockingQueue<Frame>();
 			for (int i = 0; i < NUMBER_OF_BUFFERS; i++) {
@@ -140,95 +153,99 @@ public class ServerActivity extends Activity {
 		}
 		setContentView(R.layout.main);
 		status = (TextView) findViewById(R.id.textView1);
-
-		serverThread = new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-				ServerSocket serverSocket;
-				try {
-					serverSocket = new ServerSocket();
-					SocketAddress address = new InetSocketAddress(getLocalIpAddress(), 8888);
-					serverSocket.bind(address);
-				} catch (IOException e) {
-					Log.e(TAG, "Could not create server socket", e);
-					return;
-				}
-				while (!isExit) {
-					Socket socket;
+		ip = (TextView) findViewById(R.id.textViewIp);
+		if(serverThread == null) {
+			serverThread = new Thread(new Runnable() {
+	
+				@Override
+				public void run() {
+					ServerSocket serverSocket;
 					try {
-						Log.d(TAG, "Waiting for connection!");
-						socket = serverSocket.accept();
+						serverSocket = new ServerSocket();
+						SocketAddress address = new InetSocketAddress(getLocalIpAddress(), 8888);
+						serverSocket.bind(address);
 					} catch (IOException e) {
-						Log.e(TAG, "Error getting client socket", e);
+						Log.e(TAG, "Could not create server socket", e);
 						return;
 					}
-					DataOutputStream dataOutputStream;
-					try {
-						OutputStream outputStream = socket.getOutputStream();
-						dataOutputStream = new DataOutputStream(outputStream);
-					} catch (IOException e) {
-						Log.e(TAG, "Error getting outputstream", e);
-						return;
-					}
-					Log.d(TAG, "accepted new socket connection and created outputstream");
-					while (socket.isConnected()) {
-						lock.lock();
+					while (!isExit) {
+						Socket socket;
 						try {
-							if(isPaused) {
-								suspended.await();
+							Log.d(TAG, "Waiting for connection!");
+							socket = serverSocket.accept();
+						} catch (IOException e) {
+							Log.e(TAG, "Error getting client socket", e);
+							return;
+						}
+						DataOutputStream dataOutputStream;
+						try {
+							OutputStream outputStream = socket.getOutputStream();
+							dataOutputStream = new DataOutputStream(outputStream);
+						} catch (IOException e) {
+							Log.e(TAG, "Error getting outputstream", e);
+							return;
+						}
+						Log.d(TAG, "accepted new socket connection and created outputstream");
+						while (socket.isConnected()) {
+							lock.lock();
+							try {
+								if(isPaused) {
+									suspended.await();
+									continue;
+								}
+								if(isExit) {
+									break;
+								}
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+								continue;
+							} finally {
+								lock.unlock();
+							}
+							Frame frame;
+							try {
+								frame = filledFrames.take();
+							} catch (InterruptedException e) {
+								Log.e(TAG, "Error getting filled frame", e);
 								continue;
 							}
-							if(isExit) {
+							try {
+								Log.i(TAG, "Writing out uncompressed " + frame.uncompressedSize + " compressed " + frame.compressedSize + " of width " + preW + " and height " + preH);
+								dataOutputStream.writeInt(frame.uncompressedSize);
+								dataOutputStream.writeInt(frame.compressedSize);
+								dataOutputStream.writeInt(preW);
+								dataOutputStream.writeInt(preH);
+								dataOutputStream.write(frame.data, 0, frame.compressedSize);
+								sent++;
+							} catch (IOException e) {
+								Log.e(TAG, "Error writing to output stream", e);
 								break;
+							} finally {
+								freeFrames.add(frame);
 							}
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-							continue;
-						} finally {
-							lock.unlock();
-						}
-						Frame data;
-						try {
-							data = filledFrames.take();
-						} catch (InterruptedException e) {
-							Log.e(TAG, "Error getting filled frame", e);
-							continue;
 						}
 						try {
-							Log.i(TAG, "Writing out uncompressed " + data.uncompressedSize + " compressed " + data.compressedSize + " of width " + preW + " and height " + preH);
-							dataOutputStream.writeInt(data.uncompressedSize);
-							dataOutputStream.writeInt(data.compressedSize);
-							dataOutputStream.writeInt(preW);
-							dataOutputStream.writeInt(preH);
-							dataOutputStream.write(data.data, 0, data.compressedSize);
+							socket.close();
 						} catch (IOException e) {
-							Log.e(TAG, "Error writing to output stream", e);
-							break;
-						} finally {
-							freeFrames.add(data);
+							Log.d(TAG, "Error closing socket");
 						}
-					}
-					try {
-						socket.close();
-					} catch (IOException e) {
-						Log.d(TAG, "Error closing socket");
 					}
 				}
-			}
-		});
-		serverThread.start();
+			});
+			serverThread.start();
+		}
 	
 	}
 
 	private void openCamera() {
 		lock.lock();
-
 		try {
 			camera = Camera.open();
 			Camera.Parameters parameters = camera.getParameters();
+			//parameters.setPreviewSize(640,480);
 			preH = parameters.getPreviewSize().height;
 			preW = parameters.getPreviewSize().width;
+			//camera.setParameters(parameters);
 			bytesPerPixel = 4;
 			if (buffers == null) {
 				int frameSize = preH * preW * bytesPerPixel;
@@ -240,6 +257,9 @@ public class ServerActivity extends Activity {
 			camera.setPreviewCallback(previewCallback);
 			camera.startPreview();
 			startTime = System.currentTimeMillis();
+			sent = 0;
+			dropped = 0;
+			frames = 0;
 		} finally {
 			lock.unlock();
 		}
