@@ -76,7 +76,6 @@ public class RobotService extends Service {
 	
 	// Binder given to clients
 	private final IBinder binder = new LocalBinder();
-	private BlockingQueue<byte[]> sendQueue = new LinkedBlockingQueue<byte[]>();
 	private Thread backgroundThread;
 	private UsbAccessory accessory;
 	

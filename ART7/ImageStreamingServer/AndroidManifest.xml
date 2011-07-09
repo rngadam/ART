@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      package="com.xinchejian.art.video"
+      package="com.xinchejian.art.video.server"
       android:versionCode="1"
       android:versionName="1.0">
 <uses-permission android:name="android.permission.CAMERA"></uses-permission>
@@ -8,7 +8,10 @@
 
 
     <application android:icon="@drawable/icon" android:label="@string/app_name">
-        <activity android:name=".ServerActivity"
+ 	    <service android:name="VideoStreamingSenderService">
+        </service>	
+ 
+        <activity android:name="ServerActivity"
                   android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

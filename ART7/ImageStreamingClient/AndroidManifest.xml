@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      package="com.xinchejian.art.video"
+      package="com.xinchejian.art.video.client"
       android:versionCode="1"
       android:versionName="1.0">
 <uses-permission android:name="android.permission.INTERNET"></uses-permission>
 
 
     <application android:icon="@drawable/icon" android:label="@string/app_name">
+ 	    <service android:name="VideoStreamingReceiverService">
+        </service>	
         <activity android:name="ClientActivity"
                   android:label="@string/app_name">
             <intent-filter>
