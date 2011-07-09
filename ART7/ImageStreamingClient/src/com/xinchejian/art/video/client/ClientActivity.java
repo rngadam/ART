@@ -1,5 +1,8 @@
 package com.xinchejian.art.video.client;
 
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
@@ -15,57 +18,45 @@ import android.widget.Toast;
 import com.xinchejian.art.video.client.VideoStreamingReceiverService.LocalBinder;
 
 public class ClientActivity extends Activity {
-    @Override
-	protected void onPause() {
-		super.onPause();
-	}
-
-	@Override
-	protected void onResume() {
-		super.onResume();
-        bindService();		
-	}
-
 	protected static final String TAG = ClientActivity.class.getCanonicalName();
+	private final ReentrantLock lock = new ReentrantLock();
+	private final Condition isPausedCondition = lock.newCondition();
+	private volatile boolean isPaused = true;
 	private ImageView imageView;
 	private Handler imageUpdaterHandler = new Handler();
 	private VideoStreamingReceiverClient videoStreamingReceiverClient;
+	
+	private void changePauseState(boolean flag) {
+		lock.lock();
+		try {
+			isPaused = flag;
+			imageUpdaterHandler.removeCallbacks(imageUpdaterRunnable);
+			if(!flag) {
+				imageUpdaterHandler.postDelayed(imageUpdaterRunnable, 200);
+			}
+			isPausedCondition.signal();
+		} finally {
+			lock.unlock();
+		}
+	}
 
 	private ServiceConnection mConnection = new ServiceConnection() {
 
 		public void onServiceConnected(ComponentName className, IBinder service) {
+			Toast.makeText(ClientActivity.this, "Service connected " + className,
+					Toast.LENGTH_SHORT).show();
 			LocalBinder binder = (LocalBinder) service;
 			videoStreamingReceiverClient = new VideoStreamingReceiverClient(binder.getService());
-			imageUpdaterHandler.postDelayed(imageUpdaterRunnable, 1000);
+			changePauseState(false);
 		}
 
 		public void onServiceDisconnected(ComponentName className) {
-			imageUpdaterHandler.removeCallbacks(imageUpdaterRunnable);
-			videoStreamingReceiverClient = null;
+			Toast.makeText(ClientActivity.this, "Service disconnected " + className,
+					Toast.LENGTH_SHORT).show();			
+			changePauseState(true);
 		}
 	};
-	
-	public void startService() {
-		Intent intent = new Intent(this, VideoStreamingReceiverService.class);
-		//we start the service with the intent to make sure that it always
-		//runs in the background even if we unbind from the service.
-		ComponentName componentName = startService(intent);
-		if (componentName == null) {
-			Toast.makeText(this, "Could not connect to service",
-					Toast.LENGTH_SHORT).show();
-		} else {
-			bindService();
-		}		
-	}
 
-	private void bindService() {
-		Toast.makeText(this, "Connecting to service " + VideoStreamingReceiverService.class.getName(),
-				Toast.LENGTH_SHORT).show();
-		// Bind to the service
-		bindService(new Intent(this, VideoStreamingReceiverService.class),
-				mConnection, Context.BIND_AUTO_CREATE);
-	}
-	
 	/** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -75,14 +66,54 @@ public class ClientActivity extends Activity {
         imageView = (ImageView) findViewById(R.id.imageView1);
     }
     
+	@Override
+	protected void onStart() {
+		super.onStart();
+        bindService();	
+	}
+
+	@Override
+	protected void onStop() {
+		super.onStop();
+		unbindService(mConnection);
+	}
+	
+	private void startService() {
+		Intent intent = new Intent(this, VideoStreamingReceiverService.class);
+		//we start the service with the intent to make sure that it always
+		//runs in the background even if we unbind from the service.
+		ComponentName componentName = startService(intent);
+		if (componentName == null) {
+			Toast.makeText(this, "Could not connect to service",
+					Toast.LENGTH_SHORT).show();
+		} 	
+	}
+
+	private void bindService() {
+		Toast.makeText(this, "Connecting to service " + VideoStreamingReceiverService.class.getName(),
+				Toast.LENGTH_SHORT).show();
+		// Bind to the service
+		bindService(new Intent(this, VideoStreamingReceiverService.class),
+				mConnection, Context.BIND_AUTO_CREATE);
+	}
+
+    
 	private Runnable imageUpdaterRunnable = new Runnable() {
 		@Override
 		public void run() {
+			//Log.d(TAG, "Updating client UI");
 			Bitmap nextBitmap = videoStreamingReceiverClient.getNextBitmap();
 			if(nextBitmap != null) {
 				imageView.setImageBitmap(nextBitmap);
 			}
-			imageUpdaterHandler.postDelayed(imageUpdaterRunnable, 200);
+			lock.lock();
+			try {
+				if(!isPaused) {
+					imageUpdaterHandler.postDelayed(imageUpdaterRunnable, 200);
+				}
+			} finally {
+				lock.unlock();
+			}
 		}
 	};
 }

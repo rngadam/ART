@@ -22,16 +22,29 @@ import android.util.Log;
 import android.widget.Toast;
 
 public class VideoStreamingReceiverService extends Service {
+	@Override
+	public void onRebind(Intent intent) {
+		super.onRebind(intent);
+		mutatePause(false);
+	}
+
+	@Override
+	public void onStart(Intent intent, int startId) {
+		super.onStart(intent, startId);
+		mutatePause(false);
+	}
+
 	private static final String TAG = VideoStreamingReceiverService.class.getName();
 	// Binder given to clients
 	private final IBinder binder = new LocalBinder();
 	private final ReentrantLock lock = new ReentrantLock();
 	private final Condition suspended = lock.newCondition();
-	private boolean isPaused = false;
-	private boolean isExit = false;
+	private volatile boolean isPaused = false;
+	private volatile boolean isExit = false;
 	private Thread clientThread;
 	private byte[] buffer;
-	private LinkedBlockingQueue<Bitmap> bitmaps = new LinkedBlockingQueue<Bitmap>();
+	private int[] secondaryBuffer;
+	private LinkedBlockingQueue<Bitmap> bitmaps = new LinkedBlockingQueue<Bitmap>(5);
 
 	private Runnable clientThreadRunnable = new Runnable() {
 		
@@ -118,7 +131,10 @@ public class VideoStreamingReceiverService extends Service {
 						break;
 					}
 					try {
-						bitmaps.put(processImage(buffer, uncompressed, width, height));
+						Bitmap processImage = processImage(buffer, uncompressed, width, height);
+						if(bitmaps.remainingCapacity() > 0) {
+							bitmaps.put(processImage);
+						}
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					} catch(IllegalArgumentException e) {
@@ -136,9 +152,8 @@ public class VideoStreamingReceiverService extends Service {
 
 
 		private Bitmap processImage(byte[] buffer, int uncompressed, int width, int height) {
-			int[] output = new int[buffer.length];
-			decodeYUV420SP(output, buffer, width, height);
-			return Bitmap.createBitmap(output, width, height, Config.ARGB_8888);
+			decodeYUV420SP(secondaryBuffer, buffer, width, height);
+			return Bitmap.createBitmap(secondaryBuffer, width, height, Config.ARGB_8888);
 		}
 	};
 	/**
@@ -158,14 +173,18 @@ public class VideoStreamingReceiverService extends Service {
 	public IBinder onBind(Intent intent) {
 		Toast.makeText(getApplicationContext(), "binding", Toast.LENGTH_SHORT)
 				.show();
+		mutatePause(false);
+		return binder;
+	}
+
+	private void mutatePause(boolean flag) {
 		lock.lock();
 		try {
-			isPaused = false;
+			isPaused = flag;
 			suspended.signal();
 		} finally {
 			lock.unlock();
 		}
-		return binder;
 	}
 
 	@Override
@@ -173,10 +192,13 @@ public class VideoStreamingReceiverService extends Service {
 		super.onCreate();
 		Log.d(TAG, "onCreate");
 		buffer = new byte[1000000];
+		secondaryBuffer = new int[1000000];
         if(clientThread == null) {
 			clientThread = new Thread(clientThreadRunnable);
 			clientThread.start();
         }
+		mutatePause(false);
+		mutateExit(false);
 	}
 
 
@@ -190,9 +212,13 @@ public class VideoStreamingReceiverService extends Service {
 	public void onDestroy() {
 		super.onDestroy();
 		Log.d(TAG, "onDestroy");	
+		mutateExit(true);
+	}
+
+	private void mutateExit(boolean flag) {
 		lock.lock();
 		try {
-			isExit = true;
+			isExit = flag;
 			suspended.signal();
 		} finally {
 			lock.unlock();
@@ -209,13 +235,7 @@ public class VideoStreamingReceiverService extends Service {
 
 	@Override
 	public boolean onUnbind(Intent intent) {
-		lock.lock();
-		try {
-			isPaused = true;
-			suspended.signal();
-		} finally {
-			lock.unlock();
-		}
+		mutatePause(true);
 		return super.onUnbind(intent);
 	}
 

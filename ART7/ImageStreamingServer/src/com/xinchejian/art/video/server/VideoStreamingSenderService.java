@@ -35,6 +35,31 @@ public class VideoStreamingSenderService extends Service {
 	protected int frames;
 	private long startTime;
 	private Deflater compresser;
+	private final class PreviewCallbackImplementation implements
+			Camera.PreviewCallback {
+		public void onPreviewFrame(byte[] previewFrameBytes, Camera camera) {
+			try {
+				if (camera == null) {
+					return;
+				}
+				if(!freeFrames.isEmpty()) {
+					Frame frame;
+					frame = freeFrames.take();
+					compresser.reset();
+					compresser.setInput(previewFrameBytes);
+					compresser.finish();
+					frame.compressedSize = compresser.deflate(frame.data);
+					frame.uncompressedSize = previewFrameBytes.length;
+					filledFrames.put(frame);
+					frames++;
+				} else {
+					dropped++;
+				}
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			} 
+		}
+	}
 	private final class serverThreadRunnable implements Runnable {
 		@Override
 		public void run() {
@@ -142,20 +167,12 @@ public class VideoStreamingSenderService extends Service {
 		} finally {
 			lock.unlock();
 		}
+		closeCamera();
 	}
 
 	@Override
 	public boolean onUnbind(Intent intent) {
 		Log.d(TAG, "onUnbind");
-		// never pause service...
-		/*lock.lock();
-		try {
-			isPaused = true;
-			suspended.signal();
-		} finally {
-			lock.unlock();
-		}*/
-		closeCamera();
 		return super.onUnbind(intent);
 	}
 
@@ -170,7 +187,7 @@ public class VideoStreamingSenderService extends Service {
 	
 	@Override
 	public IBinder onBind(Intent intent) {
-		Log.d(TAG, "onResume");
+		Log.d(TAG, "onBind");
 		lock.lock();
 		try {
 			isPaused = false;
@@ -178,37 +195,10 @@ public class VideoStreamingSenderService extends Service {
 		} finally {
 			lock.unlock();
 		}
-		openCamera();
 		return binder;
 	}
 
-	Camera.PreviewCallback previewCallback = new Camera.PreviewCallback() {
-
-
-		public void onPreviewFrame(byte[] previewFrameBytes, Camera camera) {
-			try {
-				if (camera == null) {
-					return;
-				}
-				if(!freeFrames.isEmpty()) {
-					Frame frame;
-					frame = freeFrames.take();
-					compresser.reset();
-					compresser.setInput(previewFrameBytes);
-					compresser.finish();
-					frame.compressedSize = compresser.deflate(frame.data);
-					frame.uncompressedSize = previewFrameBytes.length;
-					filledFrames.put(frame);
-					frames++;
-				} else {
-					dropped++;
-				}
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			} 
-		}
-
-	};
+	Camera.PreviewCallback previewCallback = new PreviewCallbackImplementation();
 
 	/** Called when the activity is first created. */
 
@@ -216,6 +206,7 @@ public class VideoStreamingSenderService extends Service {
 	public void onCreate() {
 		super.onCreate();
 		isPaused = false;
+		suspended.signal();
 		compresser = new Deflater();
 		compresser.setStrategy(Deflater.HUFFMAN_ONLY);
 		if(freeFrames == null) {
@@ -230,6 +221,7 @@ public class VideoStreamingSenderService extends Service {
 			serverThread = new Thread(new serverThreadRunnable());
 			serverThread.start();
 		}
+		openCamera();
 	
 	}
 
