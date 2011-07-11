@@ -2,4 +2,7 @@
 <resources>
     <string name="hello">Hello World, ServerActivity!</string>
     <string name="app_name">ART Server</string>
+    <string name="exit">Exit</string>
+    <string name="simulate">Simulate</string>
 </resources>
+

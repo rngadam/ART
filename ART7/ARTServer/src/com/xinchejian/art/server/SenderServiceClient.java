@@ -11,7 +11,6 @@ public class SenderServiceClient {
 	}
 
 	public String getIp() {
-		// TODO Auto-generated method stub
 		return service.getLocalIpAddress();
 	}
 

@@ -7,5 +7,6 @@
 <TextView android:text="TextView" android:id="@+id/textViewRobotMessages" android:layout_width="wrap_content" android:layout_height="wrap_content"></TextView>
 <TextView android:text="TextView" android:id="@+id/textViewRobotState" android:layout_width="wrap_content" android:layout_height="wrap_content"></TextView>
 <TextView android:text="TextView" android:id="@+id/textViewVideoState" android:layout_width="wrap_content" android:layout_height="wrap_content"></TextView>
+<TextView android:text="TextView" android:id="@+id/textViewActivityState" android:layout_width="wrap_content" android:layout_height="wrap_content"></TextView>
 <TextView android:layout_width="wrap_content" android:id="@+id/textViewIp" android:text="TextView" android:layout_height="wrap_content"></TextView>
 </LinearLayout>

@@ -1,6 +1,8 @@
 package com.xinchejian.art.server;
 
 import com.xinchejian.art.robot.RobotCommands;
+import com.xinchejian.art.robot.RobotData;
+import com.xinchejian.art.robot.RobotData.RobotSensors;
 
 public class RobotServiceClient {
 	private final RobotService service;
@@ -27,5 +29,17 @@ public class RobotServiceClient {
 
 	public void go(RobotCommands.Directions direction) {
 		service.go(direction);
+	}
+
+	public RobotCommands getCurrentCommand() {
+		return service.getCurrentCommand();
+	}
+
+	public RobotData getCurrentData() {
+		return service.getCurrentData();
+	}
+
+	public void simulateCollision(RobotSensors robotSensor, boolean state) {
+		service.simulateCollision(robotSensor, state);
 	}
 }

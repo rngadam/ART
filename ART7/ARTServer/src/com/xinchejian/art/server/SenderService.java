@@ -37,17 +37,20 @@ public class SenderService extends Service {
 			return SenderService.this;
 		}
 	}
+
 	private class Frame {
 		public boolean compression;
 		int compressedSize;
 		byte[] data;
 		int uncompressedSize;
+
 		public Frame() {
 			uncompressedSize = 0;
 			compressedSize = 0;
 			compression = false;
 		}
 	}
+
 	private final class PreviewCallbackImplementation implements
 			Camera.PreviewCallback {
 		public void onPreviewFrame(byte[] previewFrameBytes, Camera camera) {
@@ -57,8 +60,8 @@ public class SenderService extends Service {
 				}
 				Frame frame = new Frame();
 				frame.compression = compression;
-				if(compression) {
-					if(!freeBuffers.isEmpty()) {
+				if (compression) {
+					if (!freeBuffers.isEmpty()) {
 						frame.data = freeBuffers.take();
 						compresser.reset();
 						compresser.setInput(previewFrameBytes);
@@ -76,9 +79,10 @@ public class SenderService extends Service {
 				frames++;
 			} catch (InterruptedException e) {
 				e.printStackTrace();
-			} 
+			}
 		}
 	}
+
 	private final class serverThreadRunnable implements Runnable {
 		@Override
 		public void run() {
@@ -88,8 +92,9 @@ public class SenderService extends Service {
 				try {
 					serverSocket = new ServerSocket();
 					String hostName = getLocalIpAddress();
-					if(hostName != null) { // may be null when network is off
-						SocketAddress address = new InetSocketAddress(hostName, 8888);
+					if (hostName != null) { // may be null when network is off
+						SocketAddress address = new InetSocketAddress(hostName,
+								8888);
 						serverSocket.bind(address);
 					} else {
 						continue;
@@ -97,7 +102,7 @@ public class SenderService extends Service {
 				} catch (IOException e) {
 					Log.e(TAG, "Could not create server socket", e);
 					continue;
-				}				
+				}
 				Socket socket;
 				try {
 					Log.d(TAG, "Waiting for connection!");
@@ -108,28 +113,31 @@ public class SenderService extends Service {
 				}
 				DataOutputStream dataOutputStream;
 				try {
-					dataOutputStream = new DataOutputStream(socket.getOutputStream());
+					dataOutputStream = new DataOutputStream(
+							socket.getOutputStream());
 				} catch (IOException e) {
 					Log.e(TAG, "Error getting outputstream", e);
 					continue;
 				}
 				DataInputStream dataInputStream;
 				try {
-					dataInputStream = new DataInputStream(socket.getInputStream());
+					dataInputStream = new DataInputStream(
+							socket.getInputStream());
 				} catch (IOException e) {
 					Log.e(TAG, "Error getting inputstream", e);
 					continue;
-				}				
-				Log.d(TAG, "accepted new socket connection and created outputstream");
+				}
+				Log.d(TAG,
+						"accepted new socket connection and created outputstream");
 				openCamera();
 				while (socket.isConnected()) {
 					lock.lock();
 					try {
-						if(isPaused) {
+						if (isPaused) {
 							suspended.await();
 							continue;
 						}
-						if(isExit) {
+						if (isExit) {
 							break;
 						}
 					} catch (InterruptedException e) {
@@ -146,31 +154,37 @@ public class SenderService extends Service {
 						continue;
 					}
 					try {
-						//Log.i(TAG, "Writing out uncompressed " + frame.uncompressedSize + " compressed " + frame.compressedSize + " of width " + preW + " and height " + preH);
+						// Log.i(TAG, "Writing out uncompressed " +
+						// frame.uncompressedSize + " compressed " +
+						// frame.compressedSize + " of width " + preW +
+						// " and height " + preH);
 						dataOutputStream.writeInt(frame.uncompressedSize);
 						dataOutputStream.writeInt(frame.compressedSize);
 						dataOutputStream.writeInt(preW);
 						dataOutputStream.writeInt(preH);
 						dataOutputStream.writeBoolean(frame.compression);
-						dataOutputStream.writeByte(robotData.collisions);
-						if(frame.compression) {
-							dataOutputStream.write(frame.data, 0, frame.compressedSize);
+						dataOutputStream.writeByte(robotData.getCollisions());
+						if (frame.compression) {
+							dataOutputStream.write(frame.data, 0,
+									frame.compressedSize);
 						} else {
-							dataOutputStream.write(frame.data, 0, frame.uncompressedSize);
+							dataOutputStream.write(frame.data, 0,
+									frame.uncompressedSize);
 						}
 						sent++;
 					} catch (IOException e) {
 						Log.e(TAG, "Error writing to output stream", e);
 						break;
 					} finally {
-						if(compression && freeBuffers.isEmpty()) {
+						if (compression && freeBuffers.isEmpty()) {
 							freeBuffers.add(frame.data);
 						} else {
 							camera.addCallbackBuffer(frame.data);
 						}
 					}
 					try {
-						robotCommands.direction = RobotCommands.Directions.values()[dataInputStream.readInt()];
+						robotCommands.setDirection(RobotCommands.Directions
+								.values()[dataInputStream.readInt()]);
 					} catch (IOException e) {
 						Log.e(TAG, "Error reading from inputstream", e);
 						break;
@@ -186,6 +200,7 @@ public class SenderService extends Service {
 			}
 		}
 	}
+
 	private static final int COMPRESSED_FRAME_SIZE = 500000;
 	private static final int NUMBER_OF_BUFFERS = 5;
 	private static final String TAG = SenderService.class.getCanonicalName();
@@ -200,14 +215,14 @@ public class SenderService extends Service {
 	private LinkedBlockingQueue<Frame> filledFrames = new LinkedBlockingQueue<Frame>();
 	private LinkedBlockingQueue<byte[]> freeBuffers;
 	private boolean isExit = false;
-	
+
 	private boolean isPaused = false;
 	private final ReentrantLock lock = new ReentrantLock();
 	private int maxFps;
 	private int minFps;
 	private int preH;
 	private int preW;
-	private RobotCommands robotCommands = new RobotCommands();
+	private final RobotCommands robotCommands = new RobotCommands();
 	private RobotData robotData = new RobotData();
 	private int sent;
 	private Thread serverThread;
@@ -220,35 +235,32 @@ public class SenderService extends Service {
 	Camera.PreviewCallback previewCallback = new PreviewCallbackImplementation();
 
 	public String getLocalIpAddress() {
-	    try {
-	        for (Enumeration<NetworkInterface> en = NetworkInterface
-	                .getNetworkInterfaces(); en.hasMoreElements();) {
-	            NetworkInterface intf = en.nextElement();
-	            for (Enumeration<InetAddress> enumIpAddr = intf
-	                    .getInetAddresses(); enumIpAddr.hasMoreElements();) {
-	                InetAddress inetAddress = enumIpAddr.nextElement();
-	                if (!inetAddress.isLoopbackAddress()) {
-	                    return inetAddress.getHostAddress().toString();
-	                }
-	            }
-	        }
-	    } catch (SocketException e) {
-	    	Log.e(TAG, "Could not get local IP", e);
-	    }
-    	Log.e(TAG, "Could not get local IP");
-	    return null;
+		try {
+			for (Enumeration<NetworkInterface> en = NetworkInterface
+					.getNetworkInterfaces(); en.hasMoreElements();) {
+				NetworkInterface intf = en.nextElement();
+				for (Enumeration<InetAddress> enumIpAddr = intf
+						.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+					InetAddress inetAddress = enumIpAddr.nextElement();
+					if (!inetAddress.isLoopbackAddress()) {
+						return inetAddress.getHostAddress().toString();
+					}
+				}
+			}
+		} catch (SocketException e) {
+			Log.e(TAG, "Could not get local IP", e);
+		}
+		Log.e(TAG, "Could not get local IP");
+		return null;
 	}
+
 	public String getStatus() {
 		return "Frame rate: " + frames * 1000
-				/ (System.currentTimeMillis() - startTime) 
-				+ " dropped " + dropped
-				+ " sent " + sent
-				+ "\nminfps " + minFps
-				+ " maxfps " + maxFps
-				+ "\nwidth " + preW 
-				+ " height " + preH;
+				/ (System.currentTimeMillis() - startTime) + " dropped "
+				+ dropped + " sent " + sent + "\nminfps " + minFps + " maxfps "
+				+ maxFps + "\nwidth " + preW + " height " + preH;
 	}
-	
+
 	@Override
 	public IBinder onBind(Intent intent) {
 		Log.d(TAG, "onBind");
@@ -264,19 +276,18 @@ public class SenderService extends Service {
 		changePauseState(false);
 		compresser = new Deflater();
 		compresser.setStrategy(Deflater.HUFFMAN_ONLY);
-		if(freeBuffers == null) {
+		if (freeBuffers == null) {
 			freeBuffers = new LinkedBlockingQueue<byte[]>();
 			for (int i = 0; i < NUMBER_OF_BUFFERS; i++) {
 				freeBuffers.add(new byte[COMPRESSED_FRAME_SIZE]);
 			}
 		}
-		if(serverThread == null) {
+		if (serverThread == null) {
 			serverThread = new Thread(new serverThreadRunnable());
 			serverThread.start();
 		}
-	
-	}
 
+	}
 
 	@Override
 	public void onDestroy() {
@@ -303,11 +314,12 @@ public class SenderService extends Service {
 	}
 
 	public void send(RobotData robotData) {
-		if(robotData == null) {
+		if (robotData == null) {
 			Log.e(TAG, "Error, tried to send null RobotData object");
 		}
-		this.robotData = robotData;
+		this.robotData.update(robotData);
 	}
+
 	private void changePauseState(boolean flag) {
 		lock.lock();
 		try {
@@ -337,40 +349,52 @@ public class SenderService extends Service {
 		try {
 			camera = Camera.open();
 			Camera.Parameters parameters = camera.getParameters();
-			
+
 			int previewFpsRangeIndex = Camera.Parameters.PREVIEW_FPS_MIN_INDEX;
 			/*
-			 * SharedPreferences preferences = getSharedPreferences(ServerConstants.PREFS_STORE, MODE_WORLD_WRITEABLE);
-			boolean use_high_fps = preferences.getBoolean(ServerConstants.USE_HIGH_FPS_PREF, true);
-			if(use_high_fps) {
-				previewFpsRangeIndex = Camera.Parameters.PREVIEW_FPS_MAX_INDEX-1;
-			} else {
-				previewFpsRangeIndex = Camera.Parameters.PREVIEW_FPS_MIN_INDEX;
-				
-			}
+			 * SharedPreferences preferences =
+			 * getSharedPreferences(ServerConstants.PREFS_STORE,
+			 * MODE_WORLD_WRITEABLE); boolean use_high_fps =
+			 * preferences.getBoolean(ServerConstants.USE_HIGH_FPS_PREF, true);
+			 * if(use_high_fps) { previewFpsRangeIndex =
+			 * Camera.Parameters.PREVIEW_FPS_MAX_INDEX-1; } else {
+			 * previewFpsRangeIndex = Camera.Parameters.PREVIEW_FPS_MIN_INDEX;
+			 * 
+			 * }
 			 */
-			
-			List<int[]> supportedPreviewFpsRange = parameters.getSupportedPreviewFpsRange();
-			minFps = supportedPreviewFpsRange.get(previewFpsRangeIndex)[0];
-			maxFps = supportedPreviewFpsRange.get(previewFpsRangeIndex)[1];
-			List<Size> supportedPreviewSizes = parameters.getSupportedPreviewSizes();
-			Size selectedSize = supportedPreviewSizes.get(0);
-			for(Size size : supportedPreviewSizes) {
-				if(size.width < selectedSize.width) 
-					selectedSize = size;
+
+			List<int[]> supportedPreviewFpsRange = parameters
+					.getSupportedPreviewFpsRange();
+			if(supportedPreviewFpsRange != null) {
+				minFps = supportedPreviewFpsRange.get(previewFpsRangeIndex)[0];
+				maxFps = supportedPreviewFpsRange.get(previewFpsRangeIndex)[1];
+				parameters.setPreviewFpsRange(minFps, maxFps);
+			} else {
+				Log.e(TAG, "Supported Preview FPS Range returns null!");
 			}
-			parameters.setPreviewSize(selectedSize.width, selectedSize.height);
-			
-			parameters.setPreviewFpsRange(minFps, maxFps);
-			preH = parameters.getPreviewSize().height;
-			preW = parameters.getPreviewSize().width;
+
+			List<Size> supportedPreviewSizes = parameters.getSupportedPreviewSizes();
+			if(supportedPreviewSizes != null) {
+				Size selectedSize = supportedPreviewSizes.get(0);
+				for (Size size : supportedPreviewSizes) {
+					Log.d(TAG, "Supported camera size " + size);
+					if (size.width < selectedSize.width)
+						selectedSize = size;
+				}
+				preW = selectedSize.width;
+				preH = selectedSize.height;
+				parameters.setPreviewSize(preW, preH);
+			} else {
+				Log.e(TAG, "Supported Preview sizes returns null!");
+			}
+
 			camera.setParameters(parameters);
 			bytesPerPixel = 4;
-			for(byte[] buffer: freeBuffers) {
+			for (byte[] buffer : freeBuffers) {
 				camera.addCallbackBuffer(buffer);
 			}
 			camera.setPreviewCallbackWithBuffer(previewCallback);
-			//camera.setPreviewCallback(previewCallback);
+			// camera.setPreviewCallback(previewCallback);
 			camera.startPreview();
 			startTime = System.currentTimeMillis();
 			sent = 0;
@@ -380,6 +404,7 @@ public class SenderService extends Service {
 			lock.unlock();
 		}
 	}
+
 	public RobotCommands getRobotCommands() {
 		return robotCommands;
 	}

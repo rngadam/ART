@@ -1,6 +1,5 @@
 package com.xinchejian.art.client;
 
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -38,6 +37,7 @@ public class ReceiverService extends Service {
 			return ReceiverService.this;
 		}
 	}
+
 	public static final int DEFAULT_PORT = 8888;
 	public static final String SERVER_ADDRESS_ATTRIBUTE = "ServerAddress";
 
@@ -82,9 +82,11 @@ public class ReceiverService extends Service {
 			}
 		}
 	}
+
 	// Binder given to clients
 	private final IBinder binder = new LocalBinder();
-	private LinkedBlockingQueue<Bitmap> bitmaps = new LinkedBlockingQueue<Bitmap>(5);
+	private LinkedBlockingQueue<Bitmap> bitmaps = new LinkedBlockingQueue<Bitmap>(
+			5);
 	private byte[] buffer;
 	private Thread clientThread;
 	private Runnable clientThreadRunnable = new Runnable() {
@@ -94,45 +96,48 @@ public class ReceiverService extends Service {
 			InetSocketAddress currentSocketAddress = null;
 			while (!isExit) {
 				Socket socket = new Socket();
-				if(socketAddress == null) {
-					//not binded yet...
+				if (socketAddress == null) {
+					// not binded yet...
 					continue;
 				} else {
-					if(!socketAddress.equals(currentSocketAddress)) {
-						Log.d(TAG, "Trying to connect to " + socketAddress);	
+					if (!socketAddress.equals(currentSocketAddress)) {
+						Log.d(TAG, "Trying to connect to " + socketAddress);
 						currentSocketAddress = socketAddress;
 					}
 				}
 				try {
 					socket.connect(socketAddress, 10000);
 				} catch (IOException e) {
-					Log.e(TAG, "Error getting client socket for " + socketAddress, e);
+					Log.e(TAG, "Error getting client socket for "
+							+ socketAddress, e);
 					try {
 						Thread.sleep(5000);
 					} catch (InterruptedException e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
+						Log.w(TAG, "Interrupted", e1);
+						continue;
 					}
 					continue;
 				}
-				if(!socket.isConnected()) {
+				if (!socket.isConnected()) {
 					continue;
 				}
 				DataInputStream dataInputStream;
 				try {
-					dataInputStream = new DataInputStream(socket.getInputStream());
+					dataInputStream = new DataInputStream(
+							socket.getInputStream());
 				} catch (IOException e) {
 					Log.e(TAG, "Error getting input stream", e);
 					continue;
 				}
-				
+
 				DataOutputStream dataOutputStream;
 				try {
-					dataOutputStream = new DataOutputStream(socket.getOutputStream());
+					dataOutputStream = new DataOutputStream(
+							socket.getOutputStream());
 				} catch (IOException e) {
 					Log.e(TAG, "Error getting input stream", e);
 					continue;
-				}				
+				}
 				Log.d(TAG, "Client connected to server");
 				received = 0;
 				dropped = 0;
@@ -140,15 +145,15 @@ public class ReceiverService extends Service {
 				while (socket.isConnected()) {
 					lock.lock();
 					try {
-						if(isPaused) {
-							suspended.await(5, TimeUnit.SECONDS);
+						if (isPaused) {
+							stateUpdates.await(5, TimeUnit.SECONDS);
 							continue;
 						}
-						if(isExit) {
+						if (isExit) {
 							break;
 						}
 					} catch (InterruptedException e) {
-						e.printStackTrace();
+						Log.w(TAG, "Interrupted", e);
 						continue;
 					} finally {
 						lock.unlock();
@@ -162,95 +167,104 @@ public class ReceiverService extends Service {
 						socket.setSoTimeout(5000);
 					} catch (SocketException e) {
 						Log.d(TAG, "could not set socket timeout", e);
-					}							
+					}
 					try {
 						uncompressed = dataInputStream.readInt();
 						compressed = dataInputStream.readInt();
 						width = dataInputStream.readInt();
 						height = dataInputStream.readInt();
 						compression = dataInputStream.readBoolean();
-						robotData.collisions = dataInputStream.readByte();
+						robotData.setCollisions(dataInputStream.readByte());
 					} catch (IOException e) {
 						Log.e(TAG, "Error reading header information", e);
 						break;
-					} 
-					
-					//Log.i(TAG, "Receiving uncompressed " + uncompressed + " compressed " + compressed + " of width " + width + " and height " + height);
-					if(uncompressed > buffer.length || uncompressed <= 0) {
-						Log.e(TAG, "Buffer is too small or invalid for uncompressed data " + buffer.length);
+					}
+
+					// Log.i(TAG, "Receiving uncompressed " + uncompressed +
+					// " compressed " + compressed + " of width " + width +
+					// " and height " + height);
+					if (uncompressed > buffer.length || uncompressed <= 0) {
+						Log.e(TAG,
+								"Buffer is too small or invalid for uncompressed data "
+										+ buffer.length);
 						break;
 					}
-					if(width > 1024 || height > 768) {
+					if (width > 1024 || height > 768) {
 						Log.e(TAG, "Invalid image size");
 						break;
 					}
 					InputStream readFrom;
-					if(compression) {
+					if (compression) {
 						readFrom = new InflaterInputStream(dataInputStream);
 					} else {
 						readFrom = dataInputStream;
 					}
 					try {
 						int read = 0;
-						while(read != uncompressed) {
-							read += readFrom.read(buffer, read, uncompressed - read);
+						while (read != uncompressed) {
+							read += readFrom.read(buffer, read, uncompressed
+									- read);
 						}
 					} catch (IOException e) {
-						Log.e(TAG, "Failed reading stream!");
+						Log.e(TAG, "Failed reading stream!", e);
 						break;
-					} catch(RuntimeException e) {
+					} catch (RuntimeException e) {
 						Log.e(TAG, "Error inflating data", e);
 						break;
 					}
 					try {
-						Bitmap processImage = processImage(buffer, uncompressed, width, height);
-						if(bitmaps.remainingCapacity() < 1) {
+						Bitmap processImage = processImage(buffer,
+								uncompressed, width, height);
+						if (bitmaps.remainingCapacity() < 1) {
 							bitmaps.take();
 							dropped++;
-						} 
+						}
 						bitmaps.put(processImage);
 						received++;
 					} catch (InterruptedException e) {
 						e.printStackTrace();
-					} catch(IllegalArgumentException e) {
+					} catch (IllegalArgumentException e) {
 						Log.e(TAG, "Error processing image");
 						break;
 					}
 					try {
-						dataOutputStream.writeInt(robotCommands.direction.ordinal());
+						dataOutputStream.writeInt(robotCommands.getDirection()
+								.ordinal());
 					} catch (IOException e) {
-						Log.e(TAG, "Error sending updated commands");
+						Log.e(TAG, "Error sending updated commands", e);
 						break;
 					}
 				}
 				try {
 					socket.close();
 				} catch (IOException e) {
-					Log.d(TAG, "Error closing socket");
+					Log.d(TAG, "Error closing socket", e);
 				}
 			}
 		}
 
-
-		private Bitmap processImage(byte[] buffer, int uncompressed, int width, int height) {
+		private Bitmap processImage(byte[] buffer, int uncompressed, int width,
+				int height) {
 			decodeYUV420SP(secondaryBuffer, buffer, width, height);
-			return Bitmap.createBitmap(secondaryBuffer, width, height, Config.ARGB_8888);
+			return Bitmap.createBitmap(secondaryBuffer, width, height,
+					Config.ARGB_8888);
 		}
 	};
 	private volatile boolean isExit = false;
 	private volatile boolean isPaused = false;
 	private final ReentrantLock lock = new ReentrantLock();
-	private RobotCommands robotCommands = new RobotCommands();
+	private final RobotCommands robotCommands = new RobotCommands();
 	private RobotData robotData = new RobotData();
 	private int[] secondaryBuffer;
 	private InetSocketAddress socketAddress;
 	private long startTime;
 
-	private final Condition suspended = lock.newCondition();
+	private final Condition stateUpdates = lock.newCondition();
 	protected int dropped;
 	protected int received;
+
 	public Bitmap getNextBitmap() {
-		if(bitmaps.isEmpty())
+		if (bitmaps.isEmpty())
 			return null;
 		try {
 			return bitmaps.take();
@@ -259,29 +273,31 @@ public class ReceiverService extends Service {
 		}
 	}
 
-
 	public RobotData getRobotData() {
 		return robotData;
 	}
 
 	public String getStatus() {
 		return "transfer fps: " + received * 1000
-			/ (System.currentTimeMillis() - startTime) 
-			+ " dropped " + dropped
-			+ " received " + received;
+				/ (System.currentTimeMillis() - startTime) + " dropped "
+				+ dropped + " received " + received;
 	}
 
 	@Override
 	public IBinder onBind(Intent intent) {
 		Toast.makeText(getApplicationContext(), "binding", Toast.LENGTH_SHORT)
 				.show();
-		String serverAddress = intent.getStringExtra(SERVER_ADDRESS_ATTRIBUTE);
-		int serverPort = intent.getIntExtra(SERVER_PORT_ATTRIBUTE, DEFAULT_PORT);
-		socketAddress = new InetSocketAddress(serverAddress, serverPort);
+		updateSocketAddress(intent);
 		mutatePause(false);
 		return binder;
 	}
 
+	private void updateSocketAddress(Intent intent) {
+		String serverAddress = intent.getStringExtra(SERVER_ADDRESS_ATTRIBUTE);
+		int serverPort = intent
+				.getIntExtra(SERVER_PORT_ATTRIBUTE, DEFAULT_PORT);
+		socketAddress = new InetSocketAddress(serverAddress, serverPort);
+	}
 
 	@Override
 	public void onCreate() {
@@ -289,25 +305,25 @@ public class ReceiverService extends Service {
 		Log.d(TAG, "onCreate");
 		buffer = new byte[1000000];
 		secondaryBuffer = new int[1000000];
-        if(clientThread == null) {
+		if (clientThread == null) {
 			clientThread = new Thread(clientThreadRunnable);
 			clientThread.start();
-        }
+		}
 		mutatePause(false);
 		mutateExit(false);
 	}
-	
+
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
-		Log.d(TAG, "onDestroy");	
+		Log.d(TAG, "onDestroy");
 		mutateExit(true);
 	}
 
 	@Override
 	public void onLowMemory() {
 		super.onLowMemory();
-		Log.d(TAG, "onLowMemory");		
+		Log.d(TAG, "onLowMemory");
 	}
 
 	// services exposed...
@@ -315,6 +331,7 @@ public class ReceiverService extends Service {
 	@Override
 	public void onRebind(Intent intent) {
 		super.onRebind(intent);
+		updateSocketAddress(intent);
 		mutatePause(false);
 	}
 
@@ -327,8 +344,9 @@ public class ReceiverService extends Service {
 	@Override
 	public int onStartCommand(Intent intent, int startId, int i) {
 		Log.d(TAG, "onStartCommand");
+		mutatePause(false);
 		return super.onStartCommand(intent, startId, i);
-	}    
+	}
 
 	@Override
 	public boolean onUnbind(Intent intent) {
@@ -337,17 +355,17 @@ public class ReceiverService extends Service {
 	}
 
 	public void send(RobotCommands robotCommands) {
-		if(robotCommands == null) {
-			Log.e(TAG, "Tried to send null RobotCommands");
+		if (robotCommands == null) {
+			throw new RuntimeException("Tried to send null RobotCommands");
 		}
-		this.robotCommands = robotCommands;
+		this.robotCommands.update(robotCommands);
 	}
 
 	private void mutateExit(boolean flag) {
 		lock.lock();
 		try {
 			isExit = flag;
-			suspended.signal();
+			stateUpdates.signal();
 		} finally {
 			lock.unlock();
 		}
@@ -357,7 +375,7 @@ public class ReceiverService extends Service {
 		lock.lock();
 		try {
 			isPaused = flag;
-			suspended.signal();
+			stateUpdates.signal();
 		} finally {
 			lock.unlock();
 		}
