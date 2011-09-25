@@ -58,9 +58,17 @@ void loop() {
   int right = read_sensor(SENSOR_RIGHT);
 
   if (left) {
-    RIGHT();
+    LEFT();
+    delay(100);
     FWD();
-    Serial.println("right");
+    delay(100);
+
+  }
+  if (!left) {
+    RIGHT();
+    delay(100);
+    FWD();
+    delay(100);
   }
   if (!right) {
     LEFT();
@@ -69,7 +77,7 @@ void loop() {
     delay(100);
   }
   if (!mid)  {
-    LEFT();
+    RIGHT();
     delay(100);
     REV();
     delay(100);
