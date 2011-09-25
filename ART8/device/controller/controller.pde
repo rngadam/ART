@@ -1,11 +1,11 @@
-const int LEFT_DRIVE[2] = {9, 10};
-const int RIGHT_DRIVE[2] = {5, 6};
+const int LEFT_DRIVE[2] = {5, 6};
+const int RIGHT_DRIVE[2] = {9, 10};
 const int FORWARD_DRIVE = 0;
 const int BACKWARD_DRIVE = 1;
 
 const int SENSOR_FORWARD = 12;
-const int SENSOR_RIGHT = 7;
-const int SENSOR_LEFT = 8;
+const int SENSOR_RIGHT = 8;
+const int SENSOR_LEFT = 7;
 
 void setup() {
   Serial.begin(9600);
@@ -44,8 +44,8 @@ int sensor_command[][4] = {
   { OK,         OK,         OBSTACLE,   FORWARD },
   { OK,         OBSTACLE,   OK,         TURN_RIGHT },  
   { OBSTACLE,   OBSTACLE,   OK,         TURN_RIGHT },
-  { OK,         OBSTACLE,   OBSTACLE,   TURN_LEFT},
-  { OBSTACLE,   OK,         OBSTACLE,   FORWARD },
+  { OK,         OBSTACLE,   OBSTACLE,   BACKWARD},
+  { OBSTACLE,   OK,         OBSTACLE,   BACKWARD },
   { OBSTACLE,   OBSTACLE,   OBSTACLE,   BACKWARD},
 };
 
@@ -76,35 +76,15 @@ int read_sensor(int sensor_pin) {
 }
 
 int current_state[3];
-int command;
-int new_command;
+int command = IDLE;
+int new_command = FORWARD;
+long started;
+const int MINIMAL_TIME = 2000;
 
-void loop() 
-{
-  Serial.println("FORWARD");
-  forward(LEFT_DRIVE);
-  forward(RIGHT_DRIVE);
-  delay(5000);
-  Serial.println("LEFT");
-  backward(LEFT_DRIVE);
-  forward(RIGHT_DRIVE);
-  delay(5000);
-  Serial.println("RIGHT");
-  forward(LEFT_DRIVE);
-  backward(RIGHT_DRIVE);
-  delay(5000);
-  Serial.println("BACKWARD");
-  backward(LEFT_DRIVE);
-  backward(RIGHT_DRIVE);
-  delay(5000);
-  Serial.println("IDLE");
-  suspend(LEFT_DRIVE);
-  suspend(RIGHT_DRIVE);
-  delay(5000);
-}
-
-/*
 void loop() {
+  if(command == BACKWARD && (millis() - started) < MINIMAL_TIME ) {
+    return;
+  }
   current_state[0] = read_sensor(SENSOR_LEFT);
   current_state[1] = read_sensor(SENSOR_FORWARD);
   current_state[2] = read_sensor(SENSOR_RIGHT);
@@ -115,6 +95,9 @@ void loop() {
        current_state[1] == sensor_command[i][1] && 
        current_state[2] == sensor_command[i][2]) {
       new_command = sensor_command[i][3];
+      if(new_command == BACKWARD) {
+        started = millis();
+      }
       break;
     }
   }
@@ -146,4 +129,4 @@ void loop() {
     }  
   }
 }
-*/
+
