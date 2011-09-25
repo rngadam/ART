@@ -57,40 +57,23 @@ void loop() {
   int mid = read_sensor(SENSOR_FORWARD);
   int right = read_sensor(SENSOR_RIGHT);
 
-  //anything infront
-  if (mid) {
-    FWD();
-  }
-
-
-  if (!right) {
-    BREAK();
-    LEFT();
-  }
-
-  if (!left) {
-    BREAK();
+  if (left) {
     RIGHT();
+    FWD();
+    Serial.println("right");
   }
-
-
-  if (!mid) {
-    if (!right) {
-      BREAK();
-      LEFT();
-    }
-
-    if (!left) {
-      BREAK();
-      RIGHT();
-    } 
-
-    if (!mid) {
-      REV();
-      delay(100);
-      LEFT();
-      delay(50);
-    }
+  if (!right) {
+    LEFT();
+    delay(100);
+    FWD();
+    delay(100);
+  }
+  if (!mid)  {
+    LEFT();
+    delay(100);
+    REV();
+    delay(100);
+    
   }
 }
 
